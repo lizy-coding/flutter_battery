@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">通知中心</string>
+    <string name="notification_title">通知标题</string>
+    <string name="notification_message">通知内容</string>
+</resources>

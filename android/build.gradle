@@ -1,0 +1,94 @@
+group = "com.example.flutter_assistant"
+version = "1.0-SNAPSHOT"
+
+buildscript {
+    ext.kotlin_version = "1.8.22"
+    ext {
+        compileSdkVersion = 35
+        minSdkVersion = 21
+    }
+    
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.7.0")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+android {
+    namespace = "com.example.flutter_assistant"
+
+    compileSdk = 35
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_11
+    }
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+        test.java.srcDirs += "src/test/kotlin"
+    }
+
+    defaultConfig {
+        minSdk = 21
+    }
+
+    // 添加lintOptions以避免XML资源问题
+    lintOptions {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+
+    dependencies {
+        // 移除对push_notification模块的引用，因为这些类已经在主模块中
+        // implementation project(':push_notification')
+        
+        // Firebase消息传递依赖
+        implementation 'com.google.firebase:firebase-messaging:24.0.0'
+        
+        // Jetpack组件依赖
+        implementation 'androidx.core:core-ktx:1.12.0'
+        implementation 'androidx.appcompat:appcompat:1.6.1'
+        
+        // 添加Koin依赖
+        implementation 'io.insert-koin:koin-android:3.5.0'
+        implementation 'io.insert-koin:koin-core:3.5.0'
+        
+        // 添加ConstraintLayout依赖
+        implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+        
+        testImplementation("org.jetbrains.kotlin:kotlin-test")
+        testImplementation("org.mockito:mockito-core:5.0.0")
+    }
+
+    testOptions {
+        unitTests.all {
+            useJUnitPlatform()
+
+            testLogging {
+               events "passed", "skipped", "failed", "standardOut", "standardError"
+               outputs.upToDateWhen {false}
+               showStandardStreams = true
+            }
+        }
+    }
+}

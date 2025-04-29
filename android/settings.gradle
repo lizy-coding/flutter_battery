@@ -1,0 +1,6 @@
+rootProject.name = 'flutter_assistant'
+
+// 注意：push_notification不是实际的模块，而是源代码目录的一部分
+// 移除以下引用以解决构建错误
+// include ':push_notification'
+// project(':push_notification').projectDir = new File(rootProject.projectDir, 'src/main/kotlin/com/example/push_notification')
