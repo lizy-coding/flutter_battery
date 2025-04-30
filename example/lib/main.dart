@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:flutter/services.dart';
-import 'package:flutter_assistant/flutter_assistant.dart';
+import 'package:flutter_battery/flutter_battery.dart';
 
 void main() {
   runApp(const MyApp());
@@ -17,7 +17,8 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   String _platformVersion = 'Unknown';
-  final _flutterAssistantPlugin = FlutterAssistant();
+  int _batteryLevel = -1;
+  final _flutterBatteryPlugin = FlutterBattery();
   
   final TextEditingController _titleController = TextEditingController(text: '测试通知');
   final TextEditingController _messageController = TextEditingController(text: '这是一条测试通知消息');
@@ -40,11 +41,13 @@ class _MyAppState extends State<MyApp> {
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initPlatformState() async {
     String platformVersion;
+    int batteryLevel = -1;
     // Platform messages may fail, so we use a try/catch PlatformException.
     // We also handle the message potentially returning null.
     try {
       platformVersion =
-          await _flutterAssistantPlugin.getPlatformVersion() ?? 'Unknown platform version';
+          await _flutterBatteryPlugin.getPlatformVersion() ?? 'Unknown platform version';
+      batteryLevel = await _flutterBatteryPlugin.getBatteryLevel() ?? -1;
     } on PlatformException {
       platformVersion = 'Failed to get platform version.';
     }
@@ -56,13 +59,14 @@ class _MyAppState extends State<MyApp> {
 
     setState(() {
       _platformVersion = platformVersion;
+      _batteryLevel = batteryLevel;
     });
   }
   
   // 显示立即通知
   Future<void> _showNotification() async {
     try {
-      await _flutterAssistantPlugin.showNotification(
+      await _flutterBatteryPlugin.showNotification(
         title: _titleController.text,
         message: _messageController.text,
       );
@@ -86,7 +90,7 @@ class _MyAppState extends State<MyApp> {
     try {
       int delay = int.tryParse(_delayController.text) ?? 1;
       
-      await _flutterAssistantPlugin.scheduleNotification(
+      await _flutterBatteryPlugin.scheduleNotification(
         title: _titleController.text,
         message: _messageController.text,
         delayMinutes: delay,
@@ -109,9 +113,15 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Flutter Battery Demo',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+      ),
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Flutter Assistant Plugin'),
+          title: const Text('Flutter Battery Plugin'),
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
         ),
         body: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -119,6 +129,7 @@ class _MyAppState extends State<MyApp> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text('运行平台: $_platformVersion\n'),
+              Text('电池电量: $_batteryLevel%\n'),
               const SizedBox(height: 20),
               
               TextField(
@@ -148,6 +159,28 @@ class _MyAppState extends State<MyApp> {
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 20),
+              
+              ElevatedButton(
+                onPressed: () async {
+                  try {
+                    final batteryLevel = await _flutterBatteryPlugin.getBatteryLevel() ?? -1;
+                    setState(() {
+                      _batteryLevel = batteryLevel;
+                    });
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('电池电量已更新')),
+                    );
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('获取电池电量失败: $e')),
+                    );
+                  }
+                },
+                child: const Text('刷新电池电量'),
+              ),
+              const SizedBox(height: 12),
               
               ElevatedButton(
                 onPressed: _showNotification,

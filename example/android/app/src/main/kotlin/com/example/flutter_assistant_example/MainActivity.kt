@@ -1,4 +1,4 @@
-package com.example.flutter_assistant_example
+package com.example.flutter_battery_example
 
 import io.flutter.embedding.android.FlutterActivity
 

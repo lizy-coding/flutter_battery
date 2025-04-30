@@ -1,4 +1,4 @@
-rootProject.name = 'flutter_assistant'
+rootProject.name = 'flutter_battery'
 
 // 注意：push_notification不是实际的模块，而是源代码目录的一部分
 // 移除以下引用以解决构建错误

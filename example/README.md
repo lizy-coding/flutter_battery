@@ -1,6 +1,6 @@
-# flutter_assistant_example
+# flutter_battery_example
 
-Demonstrates how to use the flutter_assistant plugin.
+Demonstrates how to use the flutter_battery plugin.
 
 ## Getting Started
 

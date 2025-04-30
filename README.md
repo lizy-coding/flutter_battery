@@ -1,4 +1,4 @@
-# flutter_assistant
+# flutter_battery
 
 Flutter Android 推送通知插件，支持立即通知和延迟通知。
 
@@ -25,12 +25,12 @@ flowchart TD
 1. 在 `pubspec.yaml` 中添加本地依赖：
    ```yaml
    dependencies:
-     flutter_assistant:
+     flutter_battery:
        path: ../
    ```
 2. 在 Dart 代码中导入并调用：
    ```dart
-   import 'package:flutter_assistant/flutter_assistant.dart';
+   import 'package:flutter_battery/flutter_battery.dart';
 
    final assistant = FlutterAssistant();
 
@@ -65,7 +65,7 @@ flowchart TD
 ## 项目结构
 
 ```
-flutter_assistant/
+flutter_battery/
 ├─ android/          # Android 原生插件实现
 ├─ lib/              # Dart 插件接口和方法通道实现
 ├─ example/          # 示例应用

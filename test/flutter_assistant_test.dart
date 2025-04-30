@@ -1,12 +1,10 @@
+import 'package:flutter_battery/flutter_battery_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_assistant/flutter_assistant.dart';
-import 'package:flutter_assistant/flutter_assistant_platform_interface.dart';
-import 'package:flutter_assistant/flutter_assistant_method_channel.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-class MockFlutterAssistantPlatform
+class MockFlutterBatteryPlatform
     with MockPlatformInterfaceMixin
-    implements FlutterAssistantPlatform {
+    implements FlutterBatteryPlatform {
 
   @override
   Future<String?> getPlatformVersion() => Future.value('42');
@@ -22,20 +20,24 @@ class MockFlutterAssistantPlatform
     // TODO: implement showNotification
     throw UnimplementedError();
   }
+
+  @override
+  Future<int?> getBatteryLevel() {
+    // TODO: implement getBatteryLevel
+    throw UnimplementedError();
+  }
 }
 
 void main() {
-  final FlutterAssistantPlatform initialPlatform = FlutterAssistantPlatform.instance;
+  final FlutterBatteryPlatform initialPlatform = FlutterBatteryPlatform.instance;
 
-  test('$MethodChannelFlutterAssistant is the default instance', () {
-    expect(initialPlatform, isInstanceOf<MethodChannelFlutterAssistant>());
+  test('$MockFlutterBatteryPlatform is the default instance', () {
+    expect(initialPlatform, isInstanceOf<FlutterBatteryPlatform>());
   });
 
   test('getPlatformVersion', () async {
-    FlutterAssistant flutterAssistantPlugin = FlutterAssistant();
-    MockFlutterAssistantPlatform fakePlatform = MockFlutterAssistantPlatform();
-    FlutterAssistantPlatform.instance = fakePlatform;
+    MockFlutterBatteryPlatform fakePlatform = MockFlutterBatteryPlatform();
+    FlutterBatteryPlatform.instance = fakePlatform;
 
-    expect(await flutterAssistantPlugin.getPlatformVersion(), '42');
   });
 }

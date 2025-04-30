@@ -1,4 +1,4 @@
-package com.example.flutter_assistant
+package com.example.flutter_battery
 
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel

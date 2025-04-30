@@ -1,8 +1,13 @@
-import 'flutter_assistant_platform_interface.dart';
+import 'flutter_battery_platform_interface.dart';
 
-class FlutterAssistant {
+class FlutterBattery {
   Future<String?> getPlatformVersion() {
-    return FlutterAssistantPlatform.instance.getPlatformVersion();
+    return FlutterBatteryPlatform.instance.getPlatformVersion();
+  }
+  
+  /// 获取电池电量百分比
+  Future<int?> getBatteryLevel() {
+    return FlutterBatteryPlatform.instance.getBatteryLevel();
   }
   
   /// 调度一个延迟通知
@@ -15,7 +20,7 @@ class FlutterAssistant {
     required String message,
     int delayMinutes = 1,
   }) {
-    return FlutterAssistantPlatform.instance.scheduleNotification(
+    return FlutterBatteryPlatform.instance.scheduleNotification(
       title: title,
       message: message,
       delayMinutes: delayMinutes,
@@ -30,7 +35,7 @@ class FlutterAssistant {
     required String title,
     required String message,
   }) {
-    return FlutterAssistantPlatform.instance.showNotification(
+    return FlutterBatteryPlatform.instance.showNotification(
       title: title,
       message: message,
     );

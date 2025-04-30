@@ -1,4 +1,4 @@
-group = "com.example.flutter_assistant"
+group = "com.example.flutter_battery"
 version = "1.0-SNAPSHOT"
 
 buildscript {
@@ -30,7 +30,7 @@ apply plugin: "com.android.library"
 apply plugin: "kotlin-android"
 
 android {
-    namespace = "com.example.flutter_assistant"
+    namespace = "com.example.flutter_battery"
 
     compileSdk = 35
 
