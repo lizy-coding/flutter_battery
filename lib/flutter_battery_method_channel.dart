@@ -8,6 +8,30 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   /// The method channel used to interact with the native platform.
   @visibleForTesting
   final methodChannel = const MethodChannel('flutter_battery');
+  
+  // 电池低电量回调
+  Function(int batteryLevel)? _lowBatteryCallback;
+
+  MethodChannelFlutterBattery() {
+    methodChannel.setMethodCallHandler(_handleMethodCall);
+  }
+  
+  // 处理来自原生层的方法调用
+  Future<dynamic> _handleMethodCall(MethodCall call) async {
+    switch (call.method) {
+      case 'onLowBattery':
+        final int batteryLevel = call.arguments['batteryLevel'] as int;
+        if (_lowBatteryCallback != null) {
+          _lowBatteryCallback!(batteryLevel);
+        }
+        return true;
+      default:
+        throw PlatformException(
+          code: 'Unimplemented',
+          details: '${call.method} 尚未实现',
+        );
+    }
+  }
 
   @override
   Future<String?> getPlatformVersion() async {
@@ -19,6 +43,38 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   Future<int?> getBatteryLevel() async {
     final level = await methodChannel.invokeMethod<int>('getBatteryLevel');
     return level;
+  }
+  
+  @override
+  void setLowBatteryCallback(Function(int batteryLevel) callback) {
+    _lowBatteryCallback = callback;
+  }
+  
+  @override
+  Future<bool?> setBatteryLevelThreshold({
+    required int threshold,
+    required String title,
+    required String message,
+    int intervalMinutes = 15,
+    bool useFlutterRendering = false,
+  }) async {
+    final result = await methodChannel.invokeMethod<bool>(
+      'setBatteryLevelThreshold',
+      {
+        'threshold': threshold,
+        'title': title,
+        'message': message,
+        'intervalMinutes': intervalMinutes,
+        'useFlutterRendering': useFlutterRendering,
+      },
+    );
+    return result;
+  }
+  
+  @override
+  Future<bool?> stopBatteryMonitoring() async {
+    final result = await methodChannel.invokeMethod<bool>('stopBatteryMonitoring');
+    return result;
   }
   
   @override

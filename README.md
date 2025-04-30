@@ -1,10 +1,13 @@
 # flutter_battery
 
-Flutter Android 推送通知插件，支持立即通知和延迟通知。
+Flutter Android 推送通知和电池监控插件，支持立即通知、延迟通知和低电量监控。
 
 ## 功能概述
 
 - 获取平台版本信息
+- 获取当前电池电量
+- 监控电池电量，低于阈值时发送通知
+- 支持Flutter自定义渲染低电量通知
 - 立即发送本地通知
 - 调度延迟通知（通过 AlarmManager 和 BroadcastReceiver）
 
@@ -14,11 +17,13 @@ Flutter Android 推送通知插件，支持立即通知和延迟通知。
 flowchart TD
   subgraph Flutter端
     A[Flutter 调用]
+    Z[Flutter自定义渲染]
   end
   subgraph 原生层
     B[MethodChannel]
     C[FlutterBatteryPlugin]
     G[BatteryManager]
+    I[BatteryMonitor]
     D[PushNotificationManager]
     E[AlarmManager]
     F[NotificationAlarmReceiver]
@@ -30,6 +35,11 @@ flowchart TD
   C -->|getBatteryLevel| G
   C -->|showNotification| D
   C -->|scheduleNotification| D
+  C -->|setBatteryLevelThreshold| I
+  I -->|电量检测| G
+  I -->|电量低于阈值| D
+  I -- 自定义渲染模式 --> B
+  B -- onLowBattery --> Z
   D -->|scheduleNotification| E
   E -->|触发广播| F
   F -->|onReceive| D
@@ -68,18 +78,44 @@ flowchart TD
      message: '延迟内容',
      delayMinutes: 5,
    );
+   
+   // 设置电池电量低于阈值时的通知（原生渲染模式）
+   await flutterBattery.setBatteryLevelThreshold(
+     threshold: 20, // 低于20%时触发
+     title: '电量不足提醒',
+     message: '电池电量低于20%，请及时充电',
+     intervalMinutes: 15, // 每15分钟检查一次
+     useFlutterRendering: false, // 使用原生通知
+   );
+   
+   // 设置电池电量低于阈值时的通知（Flutter渲染模式）
+   await flutterBattery.setBatteryLevelThreshold(
+     threshold: 15,
+     title: '', // Flutter渲染模式下可不传
+     message: '', // Flutter渲染模式下可不传
+     intervalMinutes: 10,
+     useFlutterRendering: true,
+     onLowBattery: (int batteryLevel) {
+       // 在这里自定义处理低电量事件
+       print('电池电量低: $batteryLevel%');
+       // 可以显示自定义UI、播放声音等
+     },
+   );
+   
+   // 停止电池监控
+   await flutterBattery.stopBatteryMonitoring();
    ```
 
-## 整体运行流程
+## 示例应用演示
 
-1. **Flutter 层** 调用 `scheduleNotification` 或 `showNotification`
-2. 通过 **MethodChannel** 将方法名和参数传递给原生层
-3. **Android 原生层** 中的 `FlutterAssistantPlugin.onMethodCall` 接收调用
-4. 根据方法类型调用 `PushNotificationManager`，执行通知逻辑
-   - **立即通知**：通过 `NotificationManager` 直接显示
-   - **延迟通知**：通过 `AlarmManager` 设置定时广播
-5. **BroadcastReceiver** (`NotificationAlarmReceiver`) 在定时到达时触发，调用 `PushNotificationManager.showNotification`
-6. **系统通知** 最终展示在通知栏
+本插件提供 `example` 示例应用，通过图形界面一键调试所有功能：
+
+- **电池电量刷新**：点击"刷新电池电量"按钮，获取并展示当前电量
+- **推送通知**：在"推送通知"板块填写标题/内容，点击"立即发送通知"或"调度延迟通知"测试通知
+- **电池低电量监控**：在"电池监控"板块：
+  1. 输入电量阈值（%）、通知标题/内容、检查间隔（分钟）
+  2. 切换"使用Flutter自定义渲染"以选择原生通知或Flutter弹窗
+  3. 点击"开始监控"后，若电量低于阈值，将触发相应提醒；点击"停止监控"可结束监测
 
 ## 项目结构
 
@@ -94,4 +130,61 @@ flutter_battery/
 ---
 
 izy | GitHub: https://github.com/lizy-coding
+
+```mermaid
+classDiagram
+    class FlutterBattery {
+      +Future<String?> getPlatformVersion()
+      +Future<int?> getBatteryLevel()
+      +Future<bool?> scheduleNotification(...)
+      +Future<bool?> showNotification(...)
+      +Future<bool?> setBatteryLevelThreshold(...)
+      +Future<bool?> stopBatteryMonitoring()
+    }
+    class FlutterBatteryPlatform <<interface>> {
+      +Future<String?> getPlatformVersion()
+      +Future<int?> getBatteryLevel()
+      +void setLowBatteryCallback(Function(int))
+      +Future<bool?> setBatteryLevelThreshold(...)
+      +Future<bool?> stopBatteryMonitoring()
+      +Future<bool?> scheduleNotification(...)
+      +Future<bool?> showNotification(...)
+    }
+    class MethodChannelFlutterBattery {
+      -MethodChannel methodChannel
+      +getPlatformVersion()
+      +getBatteryLevel()
+      +setLowBatteryCallback()
+      +setBatteryLevelThreshold()
+      +stopBatteryMonitoring()
+      +scheduleNotification()
+      +showNotification()
+      _handleMethodCall()
+    }
+    class FlutterBatteryPlugin {
+      -MethodChannel channel
+      -pendingNotificationRequests
+      +onMethodCall()
+      +startBatteryMonitoring(threshold, title, message, interval, useFlutterRendering)
+      +stopBatteryMonitoring()
+      +getBatteryLevel(): Int
+    }
+    class PushNotificationManager {
+      +scheduleNotification(context, title, message, delayMinutes)
+      +showNotification(context, title, message, id)
+    }
+    class NotificationAlarmReceiver {
+      +onReceive(context, intent)
+    }
+
+    FlutterBattery --> FlutterBatteryPlatform
+    FlutterBatteryPlatform <|.. MethodChannelFlutterBattery
+    FlutterBattery --> FlutterBatteryPlatform
+    MethodChannelFlutterBattery --> MethodChannel
+    FlutterBatteryPlugin --> PushNotificationManager
+    PushNotificationManager --> AlarmManager
+    PushNotificationManager --> NotificationManager
+    AlarmManager ..> NotificationAlarmReceiver
+    NotificationAlarmReceiver --> PushNotificationManager
+```
 

@@ -10,6 +10,40 @@ class FlutterBattery {
     return FlutterBatteryPlatform.instance.getBatteryLevel();
   }
   
+  /// 设置电池低电量阈值监控
+  /// 
+  /// [threshold] 电池电量阈值（百分比），低于此值将触发通知
+  /// [title] 通知标题
+  /// [message] 通知内容
+  /// [intervalMinutes] 检查间隔（分钟），默认15分钟
+  /// [useFlutterRendering] 是否使用Flutter渲染通知，如果为true，将通过回调通知Flutter
+  /// [onLowBattery] 当电池电量低于阈值且useFlutterRendering为true时的回调
+  Future<bool?> setBatteryLevelThreshold({
+    required int threshold,
+    required String title,
+    required String message,
+    int intervalMinutes = 15,
+    bool useFlutterRendering = false,
+    Function(int batteryLevel)? onLowBattery,
+  }) {
+    if (useFlutterRendering && onLowBattery != null) {
+      FlutterBatteryPlatform.instance.setLowBatteryCallback(onLowBattery);
+    }
+    
+    return FlutterBatteryPlatform.instance.setBatteryLevelThreshold(
+      threshold: threshold,
+      title: title,
+      message: message,
+      intervalMinutes: intervalMinutes,
+      useFlutterRendering: useFlutterRendering,
+    );
+  }
+  
+  /// 停止电池电量监控
+  Future<bool?> stopBatteryMonitoring() {
+    return FlutterBatteryPlatform.instance.stopBatteryMonitoring();
+  }
+  
   /// 调度一个延迟通知
   /// 
   /// [title] 通知标题
