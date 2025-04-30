@@ -5,17 +5,23 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 class MockFlutterBatteryPlatform
     with MockPlatformInterfaceMixin
     implements FlutterBatteryPlatform {
-
   @override
   Future<String?> getPlatformVersion() => Future.value('42');
-  
+
   @override
-  Future<bool?> scheduleNotification({required String title, required String message, int delayMinutes = 1}) {
+  Future<bool?> scheduleNotification({
+    required String title,
+    required String message,
+    int delayMinutes = 1,
+  }) {
     return Future.value(true);
   }
-  
+
   @override
-  Future<bool?> showNotification({required String title, required String message}) {
+  Future<bool?> showNotification({
+    required String title,
+    required String message,
+  }) {
     return Future.value(true);
   }
 
@@ -25,7 +31,14 @@ class MockFlutterBatteryPlatform
   }
 
   @override
-  Future<bool?> setBatteryLevelThreshold({required int threshold, required String title, required String message, int intervalMinutes = 15, bool useFlutterRendering = false}) {
+  Future<bool?> setBatteryLevelThreshold({
+    required int threshold,
+    required String title,
+    required String message,
+    int intervalMinutes = 15,
+    bool useFlutterRendering = false,
+    dynamic Function(int)? onLowBattery,
+  }) {
     return Future.value(true);
   }
 
@@ -41,7 +54,8 @@ class MockFlutterBatteryPlatform
 }
 
 void main() {
-  final FlutterBatteryPlatform initialPlatform = FlutterBatteryPlatform.instance;
+  final FlutterBatteryPlatform initialPlatform =
+      FlutterBatteryPlatform.instance;
 
   test('Default platform is FlutterBatteryPlatform', () {
     expect(initialPlatform, isInstanceOf<FlutterBatteryPlatform>());
@@ -60,27 +74,32 @@ void main() {
   test('scheduleNotification returns true', () async {
     expect(
       await FlutterBatteryPlatform.instance.scheduleNotification(
-        title: 'test', message: 'hello', delayMinutes: 5
+        title: 'test',
+        message: 'hello',
+        delayMinutes: 5,
       ),
-      true
+      true,
     );
   });
 
   test('showNotification returns true', () async {
     expect(
       await FlutterBatteryPlatform.instance.showNotification(
-        title: 'test', message: 'world'
+        title: 'test',
+        message: 'world',
       ),
-      true
+      true,
     );
   });
 
   test('setBatteryLevelThreshold returns true', () async {
     expect(
       await FlutterBatteryPlatform.instance.setBatteryLevelThreshold(
-        threshold: 30, title: 'low', message: 'charging soon'
+        threshold: 30,
+        title: 'low',
+        message: 'charging soon',
       ),
-      true
+      true,
     );
   });
 

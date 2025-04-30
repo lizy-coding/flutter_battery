@@ -104,30 +104,14 @@ class _MyAppState extends State<MyApp> {
           // 自定义显示低电量UI
           if (!mounted) return;
           
-          // 显示一个模态对话框
+          // 显示新的低电量警告对话框
           showDialog(
             context: _scaffoldMessengerKey.currentState!.context,
-            builder: (context) => AlertDialog(
-              title: Text('电量不足警告 (Flutter渲染)'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.battery_alert, color: Colors.red, size: 48),
-                  SizedBox(height: 16),
-                  Text('当前电量: $batteryLevel%'),
-                  Text('请尽快给设备充电，否则可能会自动关机'),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('稍后提醒'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('知道了'),
-                ),
-              ],
+            builder: (context) => LowBatteryDialog(
+              batteryLevel: batteryLevel,
+              onDismiss: () {
+                _showMessage('用户已关闭低电量警告');
+              },
             ),
           );
         } : null,
@@ -218,7 +202,19 @@ class _MyAppState extends State<MyApp> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text('运行平台: $_platformVersion'),
-                Text('电池电量: $_batteryLevel%'),
+                
+                // 电池动画显示
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: BatteryAnimation(
+                      batteryLevel: _batteryLevel,
+                      width: 50,
+                      height: 100,
+                    ),
+                  ),
+                ),
+                
                 const SizedBox(height: 20),
                 
                 // 电池信息部分

@@ -57,6 +57,7 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
     required String message,
     int intervalMinutes = 15,
     bool useFlutterRendering = false,
+    dynamic Function(int)? onLowBattery,
   }) async {
     final result = await methodChannel.invokeMethod<bool>(
       'setBatteryLevelThreshold',

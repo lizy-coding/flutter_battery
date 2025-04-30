@@ -44,6 +44,7 @@ abstract class FlutterBatteryPlatform extends PlatformInterface {
     required String message,
     int intervalMinutes = 15,
     bool useFlutterRendering = false,
+    Function(int)? onLowBattery,
   }) {
     throw UnimplementedError('setBatteryLevelThreshold() has not been implemented.');
   }

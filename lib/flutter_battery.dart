@@ -1,4 +1,5 @@
 import 'flutter_battery_platform_interface.dart';
+export 'battery_animation.dart';
 
 class FlutterBattery {
   Future<String?> getPlatformVersion() {
@@ -36,6 +37,7 @@ class FlutterBattery {
       message: message,
       intervalMinutes: intervalMinutes,
       useFlutterRendering: useFlutterRendering,
+      onLowBattery: onLowBattery,
     );
   }
   
