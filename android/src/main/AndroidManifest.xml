@@ -9,15 +9,6 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     
     <application>
-        <!-- Firebase消息服务 -->
-        <service
-            android:name="com.example.push_notification.service.MyFirebaseMessagingService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-        
         <!-- 通知闹钟接收器 -->
         <receiver
             android:name="com.example.push_notification.receiver.NotificationAlarmReceiver"

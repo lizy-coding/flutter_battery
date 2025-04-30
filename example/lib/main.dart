@@ -20,6 +20,9 @@ class _MyAppState extends State<MyApp> {
   int _batteryLevel = -1;
   final _flutterBatteryPlugin = FlutterBattery();
   
+  // 创建一个全局的ScaffoldMessengerKey
+  final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  
   final TextEditingController _titleController = TextEditingController(text: '测试通知');
   final TextEditingController _messageController = TextEditingController(text: '这是一条测试通知消息');
   final TextEditingController _delayController = TextEditingController(text: '1');
@@ -63,6 +66,13 @@ class _MyAppState extends State<MyApp> {
     });
   }
   
+  // 显示消息的辅助方法
+  void _showMessage(String message) {
+    _scaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+  
   // 显示立即通知
   Future<void> _showNotification() async {
     try {
@@ -73,15 +83,11 @@ class _MyAppState extends State<MyApp> {
       
       // 显示成功反馈
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('通知已发送')),
-      );
+      _showMessage('通知已发送');
     } catch (e) {
       // 显示错误信息
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('通知发送失败: $e')),
-      );
+      _showMessage('通知发送失败: $e');
     }
   }
   
@@ -98,21 +104,18 @@ class _MyAppState extends State<MyApp> {
       
       // 显示成功反馈
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('通知已调度，将在 $delay 分钟后发送')),
-      );
+      _showMessage('通知已调度，将在 $delay 分钟后发送');
     } catch (e) {
       // 显示错误信息
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('通知调度失败: $e')),
-      );
+      _showMessage('通知调度失败: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      scaffoldMessengerKey: _scaffoldMessengerKey, // 设置ScaffoldMessenger的Key
       title: 'Flutter Battery Demo',
       theme: ThemeData(
         primarySwatch: Colors.blue,
@@ -168,14 +171,10 @@ class _MyAppState extends State<MyApp> {
                       _batteryLevel = batteryLevel;
                     });
                     if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('电池电量已更新')),
-                    );
+                    _showMessage('电池电量已更新');
                   } catch (e) {
                     if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('获取电池电量失败: $e')),
-                    );
+                    _showMessage('获取电池电量失败: $e');
                   }
                 },
                 child: const Text('刷新电池电量'),

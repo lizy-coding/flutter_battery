@@ -12,13 +12,29 @@ Flutter Android 推送通知插件，支持立即通知和延迟通知。
 
 ```mermaid
 flowchart TD
-  A[Flutter 端调用] -->|scheduleNotification/showNotification| B[MethodChannel]
-  B -->|invokeMethod| C[FlutterAssistantPlugin (Android)]
-  C -->|调用| D[PushNotificationManager]
-  D -->|scheduleNotification| E[AlarmManager → NotificationAlarmReceiver]
-  D -->|showNotification| F[NotificationManager]
-  E -->|onReceive| D.showNotification
-``` 
+  subgraph Flutter端
+    A[Flutter 调用]
+  end
+  subgraph 原生层
+    B[MethodChannel]
+    C[FlutterBatteryPlugin]
+    G[BatteryManager]
+    D[PushNotificationManager]
+    E[AlarmManager]
+    F[NotificationAlarmReceiver]
+    H[NotificationManager]
+  end
+
+  A --> B
+  B --> C
+  C -->|getBatteryLevel| G
+  C -->|showNotification| D
+  C -->|scheduleNotification| D
+  D -->|scheduleNotification| E
+  E -->|触发广播| F
+  F -->|onReceive| D
+  D -->|show通知| H
+```
 
 ## 使用方式
 
@@ -32,19 +48,22 @@ flowchart TD
    ```dart
    import 'package:flutter_battery/flutter_battery.dart';
 
-   final assistant = FlutterAssistant();
+   final flutterBattery = FlutterBattery();
 
    // 获取平台版本
-   String? version = await assistant.getPlatformVersion();
+   String? version = await flutterBattery.getPlatformVersion();
+
+   // 获取电池电量
+   int? level = await flutterBattery.getBatteryLevel();
 
    // 立即发送通知
-   await assistant.showNotification(
+   await flutterBattery.showNotification(
      title: '示例标题',
      message: '示例内容',
    );
 
    // 调度延迟通知
-   await assistant.scheduleNotification(
+   await flutterBattery.scheduleNotification(
      title: '延迟标题',
      message: '延迟内容',
      delayMinutes: 5,
@@ -74,5 +93,5 @@ flutter_battery/
 
 ---
 
-作者：lizy | GitHub: https://github.com/lizy-coding
+izy | GitHub: https://github.com/lizy-coding
 
