@@ -1,6 +1,16 @@
 rootProject.name = 'flutter_battery'
+include ':flutter_battery'
 
-// 注意：push_notification不是实际的模块，而是源代码目录的一部分
-// 移除以下引用以解决构建错误
-// include ':push_notification'
-// project(':push_notification').projectDir = new File(rootProject.projectDir, 'src/main/kotlin/com/example/push_notification')
+// 添加 Flutter 本地仓库
+def flutterProjectRoot = rootProject.projectDir.parentFile.toPath()
+def plugins = new Properties()
+def pluginsFile = new File(flutterProjectRoot.toFile(), '.flutter-plugins')
+if (pluginsFile.exists()) {
+    pluginsFile.withReader('UTF-8') { reader -> plugins.load(reader) }
+}
+
+plugins.each { name, path ->
+    def pluginDirectory = flutterProjectRoot.resolve(path).resolve('android').toFile()
+    include ":$name"
+    project(":$name").projectDir = pluginDirectory
+}

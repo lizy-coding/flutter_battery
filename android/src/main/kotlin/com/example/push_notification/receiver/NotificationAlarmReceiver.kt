@@ -1,5 +1,6 @@
 package com.example.push_notification.receiver
 
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -12,6 +13,7 @@ import com.example.push_notification.util.Constants
  */
 class NotificationAlarmReceiver : BroadcastReceiver() {
 
+    @SuppressLint("LongLogTag")
     override fun onReceive(context: Context, intent: Intent) {
         android.util.Log.d("NotificationAlarmReceiver", "接收到通知闹钟广播")
 
