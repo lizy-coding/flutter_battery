@@ -11,6 +11,9 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   
   // 电池低电量回调
   Function(int batteryLevel)? _lowBatteryCallback;
+  
+  // 电池电量变化回调
+  Function(int batteryLevel)? _batteryLevelChangeCallback;
 
   MethodChannelFlutterBattery() {
     methodChannel.setMethodCallHandler(_handleMethodCall);
@@ -23,6 +26,12 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
         final int batteryLevel = call.arguments['batteryLevel'] as int;
         if (_lowBatteryCallback != null) {
           _lowBatteryCallback!(batteryLevel);
+        }
+        return true;
+      case 'onBatteryLevelChanged':
+        final int batteryLevel = call.arguments['batteryLevel'] as int;
+        if (_batteryLevelChangeCallback != null) {
+          _batteryLevelChangeCallback!(batteryLevel);
         }
         return true;
       default:
@@ -48,6 +57,23 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   @override
   void setLowBatteryCallback(Function(int batteryLevel) callback) {
     _lowBatteryCallback = callback;
+  }
+  
+  @override
+  void setBatteryLevelChangeCallback(Function(int batteryLevel) callback) {
+    _batteryLevelChangeCallback = callback;
+  }
+  
+  @override
+  Future<bool?> startBatteryLevelListening() async {
+    final result = await methodChannel.invokeMethod<bool>('startBatteryLevelListening');
+    return result;
+  }
+  
+  @override
+  Future<bool?> stopBatteryLevelListening() async {
+    final result = await methodChannel.invokeMethod<bool>('stopBatteryLevelListening');
+    return result;
   }
   
   @override

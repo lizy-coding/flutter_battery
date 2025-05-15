@@ -1,11 +1,11 @@
 name: flutter_battery
-description: "A new Flutter plugin project."
-version: 0.0.1
-homepage:
+description: Flutter plugin for monitoring battery level and sending notifications.
+version: 0.0.2
+homepage: https://github.com/yourname/flutter_battery
 
 environment:
-  sdk: ^3.7.2
-  flutter: '>=3.3.0'
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.0.0"
 
 dependencies:
   flutter:
@@ -15,7 +15,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^2.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -37,6 +37,8 @@ flutter:
       android:
         package: com.example.flutter_battery
         pluginClass: FlutterBatteryPlugin
+      ios:
+        pluginClass: FlutterBatteryPlugin
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:
@@ -44,10 +46,10 @@ flutter:
   #   - images/a_dot_ham.jpeg
   #
   # For details regarding assets in packages, see
-  # https://flutter.dev/to/asset-from-package
+  # https://flutter.dev/assets-and-images/#from-packages
   #
   # An image asset can refer to one or more resolution-specific "variants", see
-  # https://flutter.dev/to/resolution-aware-images
+  # https://flutter.dev/assets-and-images/#resolution-aware
 
   # To add custom fonts to your plugin package, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a
@@ -67,4 +69,4 @@ flutter:
   #         weight: 700
   #
   # For details regarding fonts in packages, see
-  # https://flutter.dev/to/font-from-package
+  # https://flutter.dev/custom-fonts/#from-packages

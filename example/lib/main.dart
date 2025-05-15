@@ -19,6 +19,7 @@ class _MyAppState extends State<MyApp> {
   String _platformVersion = 'Unknown';
   int _batteryLevel = -1;
   bool _monitoringActive = false;
+  bool _batteryListeningActive = false;
   final _flutterBatteryPlugin = FlutterBattery();
   
   // 创建一个全局的ScaffoldMessengerKey
@@ -34,6 +35,9 @@ class _MyAppState extends State<MyApp> {
   final TextEditingController _batteryMessageController = TextEditingController(text: '您的电池电量已经低于阈值，请及时充电');
   final TextEditingController _intervalController = TextEditingController(text: '1');
   bool _useFlutterRendering = true;
+  
+  // 电池电量历史记录
+  final List<BatteryRecord> _batteryHistory = [];
 
   @override
   void initState() {
@@ -83,6 +87,57 @@ class _MyAppState extends State<MyApp> {
     _scaffoldMessengerKey.currentState?.showSnackBar(
       SnackBar(content: Text(message)),
     );
+  }
+  
+  // 开始电池电量变化监听
+  Future<void> _startBatteryLevelListening() async {
+    try {
+      // 设置电池电量变化回调
+      _flutterBatteryPlugin.setBatteryLevelChangeListener((batteryLevel) {
+        if (!mounted) return;
+        
+        setState(() {
+          _batteryLevel = batteryLevel;
+          _batteryHistory.add(BatteryRecord(
+            level: batteryLevel,
+            timestamp: DateTime.now(),
+          ));
+          
+          // 只保留最近的10条记录
+          if (_batteryHistory.length > 10) {
+            _batteryHistory.removeAt(0);
+          }
+        });
+        
+        _showMessage('电池电量变化: $batteryLevel%');
+      });
+      
+      // 开始监听
+      await _flutterBatteryPlugin.startBatteryLevelListening();
+      
+      setState(() {
+        _batteryListeningActive = true;
+      });
+      
+      _showMessage('已开启电池电量变化监听');
+    } catch (e) {
+      _showMessage('开启电池电量变化监听失败: $e');
+    }
+  }
+  
+  // 停止电池电量变化监听
+  Future<void> _stopBatteryLevelListening() async {
+    try {
+      await _flutterBatteryPlugin.stopBatteryLevelListening();
+      
+      setState(() {
+        _batteryListeningActive = false;
+      });
+      
+      _showMessage('已停止电池电量变化监听');
+    } catch (e) {
+      _showMessage('停止电池电量变化监听失败: $e');
+    }
   }
   
   // 开始电池监控
@@ -201,23 +256,101 @@ class _MyAppState extends State<MyApp> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('运行平台: $_platformVersion'),
-                
-                // 电池动画显示
-                Center(
+                // 平台信息和电池电量
+                Card(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: BatteryAnimation(
-                      batteryLevel: _batteryLevel,
-                      width: 50,
-                      height: 100,
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('运行平台: $_platformVersion'),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Text('当前电量: $_batteryLevel%'),
+                            const SizedBox(width: 8),
+                            BatteryAnimation(
+                              batteryLevel: _batteryLevel,
+                              width: 50,
+                              height: 25,
+                            ),
+                            const Spacer(),
+                            ElevatedButton(
+                              onPressed: initPlatformState,
+                              child: const Text('刷新'),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
                 
-                const SizedBox(height: 20),
+                // 电池电量变化监听
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('电池电量变化监听', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: _batteryListeningActive ? null : _startBatteryLevelListening,
+                                child: const Text('开始监听'),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: _batteryListeningActive ? _stopBatteryLevelListening : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red.shade100,
+                                  foregroundColor: Colors.red.shade700,
+                                ),
+                                child: const Text('停止监听'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        if (_batteryHistory.isNotEmpty) ...[
+                          const Text('电量历史记录:', style: TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 150,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ListView.builder(
+                              itemCount: _batteryHistory.length,
+                              itemBuilder: (context, index) {
+                                final record = _batteryHistory[_batteryHistory.length - 1 - index];
+                                return ListTile(
+                                  dense: true,
+                                  title: Text('电量: ${record.level}%'),
+                                  subtitle: Text('时间: ${_formatDateTime(record.timestamp)}'),
+                                  leading: Icon(
+                                    Icons.battery_std,
+                                    color: _getBatteryColor(record.level),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 
-                // 电池信息部分
+                // 电池监控设置
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -362,24 +495,6 @@ class _MyAppState extends State<MyApp> {
                 const SizedBox(height: 20),
                 
                 ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      final batteryLevel = await _flutterBatteryPlugin.getBatteryLevel() ?? -1;
-                      setState(() {
-                        _batteryLevel = batteryLevel;
-                      });
-                      if (!mounted) return;
-                      _showMessage('电池电量已更新');
-                    } catch (e) {
-                      if (!mounted) return;
-                      _showMessage('获取电池电量失败: $e');
-                    }
-                  },
-                  child: const Text('刷新电池电量'),
-                ),
-                const SizedBox(height: 12),
-                
-                ElevatedButton(
                   onPressed: _showNotification,
                   child: const Text('立即发送通知'),
                 ),
@@ -394,6 +509,72 @@ class _MyAppState extends State<MyApp> {
           ),
         ),
       ),
+    );
+  }
+  
+  // 格式化日期时间
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}:${dateTime.second.toString().padLeft(2, '0')}';
+  }
+  
+  // 根据电量获取颜色
+  Color _getBatteryColor(int level) {
+    if (level <= 20) {
+      return Colors.red;
+    } else if (level <= 50) {
+      return Colors.orange;
+    } else {
+      return Colors.green;
+    }
+  }
+}
+
+// 电池记录数据类
+class BatteryRecord {
+  final int level;
+  final DateTime timestamp;
+  
+  BatteryRecord({required this.level, required this.timestamp});
+}
+
+// 低电量警告对话框
+class LowBatteryDialog extends StatelessWidget {
+  final int batteryLevel;
+  final VoidCallback onDismiss;
+  
+  const LowBatteryDialog({
+    super.key,
+    required this.batteryLevel,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('电池电量低'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          BatteryAnimation(
+            batteryLevel: batteryLevel,
+            width: 100,
+            height: 50,
+            showPercentage: true,
+            warningLevel: batteryLevel + 5, // 确保显示为低电量状态
+          ),
+          const SizedBox(height: 16),
+          Text('您的电池电量已经降至 $batteryLevel%，请及时充电！'),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+            onDismiss();
+          },
+          child: const Text('我知道了'),
+        ),
+      ],
     );
   }
 }

@@ -38,6 +38,13 @@ class MethodChannelHandler(
             params["batteryLevel"] = batteryLevel
             channel.invokeMethod("onLowBattery", params)
         }
+        
+        // 设置电池电量变化回调
+        batteryMonitor.setOnBatteryLevelChangeCallback { batteryLevel ->
+            val params = HashMap<String, Any>()
+            params["batteryLevel"] = batteryLevel
+            channel.invokeMethod("onBatteryLevelChanged", params)
+        }
     }
 
     /**
@@ -54,6 +61,22 @@ class MethodChannelHandler(
                     result.success(batteryLevel)
                 } catch (e: Exception) {
                     result.error("BATTERY_ERROR", "获取电池电量失败: ${e.message}", null)
+                }
+            }
+            "startBatteryLevelListening" -> {
+                try {
+                    batteryMonitor.startBatteryLevelListening()
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("BATTERY_ERROR", "开始电池电量监听失败: ${e.message}", null)
+                }
+            }
+            "stopBatteryLevelListening" -> {
+                try {
+                    batteryMonitor.stopBatteryLevelListening()
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("BATTERY_ERROR", "停止电池电量监听失败: ${e.message}", null)
                 }
             }
             "setBatteryLevelThreshold" -> {

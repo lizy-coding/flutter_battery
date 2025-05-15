@@ -37,6 +37,21 @@ abstract class FlutterBatteryPlatform extends PlatformInterface {
     throw UnimplementedError('setLowBatteryCallback() has not been implemented.');
   }
   
+  /// 设置电池电量变化回调函数
+  void setBatteryLevelChangeCallback(Function(int batteryLevel) callback) {
+    throw UnimplementedError('setBatteryLevelChangeCallback() has not been implemented.');
+  }
+  
+  /// 开始监听电池电量变化
+  Future<bool?> startBatteryLevelListening() {
+    throw UnimplementedError('startBatteryLevelListening() has not been implemented.');
+  }
+  
+  /// 停止监听电池电量变化
+  Future<bool?> stopBatteryLevelListening() {
+    throw UnimplementedError('stopBatteryLevelListening() has not been implemented.');
+  }
+  
   /// 设置电池低电量阈值监控
   Future<bool?> setBatteryLevelThreshold({
     required int threshold,

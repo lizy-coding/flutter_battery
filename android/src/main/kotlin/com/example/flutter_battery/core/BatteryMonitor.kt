@@ -28,11 +28,27 @@ class BatteryMonitor(private val context: Context) {
     // 低电量回调
     private var onLowBatteryCallback: ((Int) -> Unit)? = null
     
+    // 电池电量变化回调
+    private var onBatteryLevelChangeCallback: ((Int) -> Unit)? = null
+    
+    // 电量变化监听专用接收器
+    private var batteryLevelChangeReceiver: BroadcastReceiver? = null
+    
+    // 上一次电量值，用于过滤相同的电量变化
+    private var lastBatteryLevel: Int = -1
+    
     /**
      * 设置低电量回调
      */
     fun setOnLowBatteryCallback(callback: (Int) -> Unit) {
         onLowBatteryCallback = callback
+    }
+    
+    /**
+     * 设置电池电量变化回调
+     */
+    fun setOnBatteryLevelChangeCallback(callback: (Int) -> Unit) {
+        onBatteryLevelChangeCallback = callback
     }
     
     /**
@@ -42,6 +58,55 @@ class BatteryMonitor(private val context: Context) {
     fun getBatteryLevel(): Int {
         val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
         return batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+    }
+    
+    /**
+     * 开始监听电池电量变化
+     */
+    fun startBatteryLevelListening() {
+        // 先停止之前的监听
+        stopBatteryLevelListening()
+        
+        // 创建新的广播接收器
+        batteryLevelChangeReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action == Intent.ACTION_BATTERY_CHANGED) {
+                    val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                    val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                    val batteryPct = (level * 100) / scale
+                    
+                    // 如果电量与上次不同才通知，避免重复通知
+                    if (batteryPct != lastBatteryLevel) {
+                        lastBatteryLevel = batteryPct
+                        onBatteryLevelChangeCallback?.invoke(batteryPct)
+                    }
+                }
+            }
+        }
+        
+        // 注册广播接收器
+        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        context.registerReceiver(batteryLevelChangeReceiver, filter)
+        
+        // 立即获取并发送一次当前电量
+        val currentLevel = getBatteryLevel()
+        lastBatteryLevel = currentLevel
+        onBatteryLevelChangeCallback?.invoke(currentLevel)
+    }
+    
+    /**
+     * 停止监听电池电量变化
+     */
+    fun stopBatteryLevelListening() {
+        batteryLevelChangeReceiver?.let {
+            try {
+                context.unregisterReceiver(it)
+                batteryLevelChangeReceiver = null
+            } catch (e: Exception) {
+                android.util.Log.e("BatteryMonitor", "Error unregistering battery level change receiver: ${e.message}")
+            }
+        }
+        lastBatteryLevel = -1
     }
     
     /**
@@ -96,8 +161,10 @@ class BatteryMonitor(private val context: Context) {
      */
     fun dispose() {
         stopMonitoring()
+        stopBatteryLevelListening()
         unregisterBatteryReceiver()
         onLowBatteryCallback = null
+        onBatteryLevelChangeCallback = null
     }
     
     // 电池监控定时器任务

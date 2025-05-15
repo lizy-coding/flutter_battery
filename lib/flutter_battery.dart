@@ -11,6 +11,24 @@ class FlutterBattery {
     return FlutterBatteryPlatform.instance.getBatteryLevel();
   }
   
+  /// 设置电池电量变化监听
+  /// 
+  /// [onBatteryLevelChanged] 电池电量变化回调
+  /// 返回一个监听句柄，可用于移除监听
+  void setBatteryLevelChangeListener(Function(int batteryLevel) onBatteryLevelChanged) {
+    FlutterBatteryPlatform.instance.setBatteryLevelChangeCallback(onBatteryLevelChanged);
+  }
+  
+  /// 开始监听电池电量变化
+  Future<bool?> startBatteryLevelListening() {
+    return FlutterBatteryPlatform.instance.startBatteryLevelListening();
+  }
+  
+  /// 停止监听电池电量变化
+  Future<bool?> stopBatteryLevelListening() {
+    return FlutterBatteryPlatform.instance.stopBatteryLevelListening();
+  }
+  
   /// 设置电池低电量阈值监控
   /// 
   /// [threshold] 电池电量阈值（百分比），低于此值将触发通知

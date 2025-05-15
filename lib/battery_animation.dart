@@ -7,6 +7,8 @@ class BatteryAnimation extends StatefulWidget {
   final double height;
   final Duration animationDuration;
   final bool isCharging;
+  final bool showPercentage;
+  final int warningLevel;
 
   const BatteryAnimation({
     Key? key,
@@ -15,6 +17,8 @@ class BatteryAnimation extends StatefulWidget {
     this.height = 200,
     this.animationDuration = const Duration(milliseconds: 800),
     this.isCharging = false,
+    this.showPercentage = true,
+    this.warningLevel = 20,
   }) : super(key: key);
 
   @override
@@ -73,9 +77,9 @@ class _BatteryAnimationState extends State<BatteryAnimation>
   }
 
   Color _getBatteryColor(double level) {
-    if (level <= 15) {
+    if (level <= widget.warningLevel) {
       return Colors.red;
-    } else if (level <= 30) {
+    } else if (level <= widget.warningLevel * 1.5) {
       return Colors.orange;
     } else {
       return Colors.green;
@@ -93,15 +97,17 @@ class _BatteryAnimationState extends State<BatteryAnimation>
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              '${currentLevel.toInt()}%',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
+            if (widget.showPercentage)
+              Text(
+                '${currentLevel.toInt()}%',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
+            if (widget.showPercentage)
+              const SizedBox(height: 16),
             CustomPaint(
               size: Size(widget.width, widget.height),
               painter: BatteryPainter(

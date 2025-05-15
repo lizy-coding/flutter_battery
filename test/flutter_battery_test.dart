@@ -51,6 +51,23 @@ class MockFlutterBatteryPlatform
   Future<bool?> stopBatteryMonitoring() {
     return Future.value(true);
   }
+  
+  @override
+  void setBatteryLevelChangeCallback(Function(int batteryLevel) callback) {
+    // TODO: implement setBatteryLevelChangeCallback
+  }
+  
+  @override
+  Future<bool?> startBatteryLevelListening() {
+    // TODO: implement startBatteryLevelListening
+    throw UnimplementedError();
+  }
+  
+  @override
+  Future<bool?> stopBatteryLevelListening() {
+    // TODO: implement stopBatteryLevelListening
+    throw UnimplementedError();
+  }
 }
 
 void main() {
