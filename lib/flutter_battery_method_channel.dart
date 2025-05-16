@@ -18,6 +18,9 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   
   // 电池电量变化回调
   Function(int batteryLevel)? _batteryLevelChangeCallback;
+  
+  // 电池信息变化回调
+  Function(Map<String, dynamic> batteryInfo)? _batteryInfoChangeCallback;
 
   MethodChannelFlutterBattery() {
     methodChannel.setMethodCallHandler(_handleMethodCall);
@@ -36,6 +39,13 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
         final int batteryLevel = call.arguments['batteryLevel'] as int;
         if (_batteryLevelChangeCallback != null) {
           _batteryLevelChangeCallback!(batteryLevel);
+        }
+        return true;
+      case 'onBatteryInfoChanged':
+        if (call.arguments is Map && _batteryInfoChangeCallback != null) {
+          final Map<dynamic, dynamic> map = call.arguments as Map<dynamic, dynamic>;
+          final Map<String, dynamic> batteryInfo = map.cast<String, dynamic>();
+          _batteryInfoChangeCallback!(batteryInfo);
         }
         return true;
       default:
@@ -59,6 +69,26 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   }
   
   @override
+  Future<Map<String, dynamic>> getBatteryInfo() async {
+    final Map<dynamic, dynamic>? result = await methodChannel.invokeMapMethod('getBatteryInfo');
+    if (result == null) {
+      return <String, dynamic>{
+        'error': 'Failed to get battery info',
+      };
+    }
+    return result.cast<String, dynamic>();
+  }
+  
+  @override
+  Future<List<String>> getBatteryOptimizationTips() async {
+    final List<dynamic>? result = await methodChannel.invokeListMethod<dynamic>('getBatteryOptimizationTips');
+    if (result == null) {
+      return <String>[];
+    }
+    return result.map((item) => item.toString()).toList();
+  }
+  
+  @override
   void setLowBatteryCallback(Function(int batteryLevel) callback) {
     _lowBatteryCallback = callback;
   }
@@ -66,6 +96,11 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   @override
   void setBatteryLevelChangeCallback(Function(int batteryLevel) callback) {
     _batteryLevelChangeCallback = callback;
+  }
+  
+  @override
+  void setBatteryInfoChangeCallback(Function(Map<String, dynamic> batteryInfo) callback) {
+    _batteryInfoChangeCallback = callback;
   }
   
   @override
@@ -77,6 +112,23 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   @override
   Future<bool?> stopBatteryLevelListening() async {
     final result = await methodChannel.invokeMethod<bool>('stopBatteryLevelListening');
+    return result;
+  }
+  
+  @override
+  Future<bool?> startBatteryInfoListening({int intervalMs = 5000}) async {
+    final result = await methodChannel.invokeMethod<bool>(
+      'startBatteryInfoListening',
+      {
+        'intervalMs': intervalMs,
+      },
+    );
+    return result;
+  }
+  
+  @override
+  Future<bool?> stopBatteryInfoListening() async {
+    final result = await methodChannel.invokeMethod<bool>('stopBatteryInfoListening');
     return result;
   }
   
@@ -119,6 +171,10 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
     bool useFlutterRendering = false,
     dynamic Function(int)? onLowBattery,
   }) async {
+    if (useFlutterRendering && onLowBattery != null) {
+      setLowBatteryCallback(onLowBattery);
+    }
+    
     final result = await methodChannel.invokeMethod<bool>(
       'setBatteryLevelThreshold',
       {

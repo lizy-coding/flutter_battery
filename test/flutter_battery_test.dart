@@ -68,6 +68,45 @@ class MockFlutterBatteryPlatform
     // TODO: implement stopBatteryLevelListening
     throw UnimplementedError();
   }
+  
+  @override
+  // TODO: implement batteryStream
+  Stream<Map<String, dynamic>> get batteryStream => throw UnimplementedError();
+  
+  @override
+  Future<bool?> setPushInterval({required int intervalMs, bool enableDebounce = true}) {
+    // TODO: implement setPushInterval
+    throw UnimplementedError();
+  }
+  
+  @override
+  Future<Map<String, dynamic>> getBatteryInfo() {
+    // TODO: implement getBatteryInfo
+    throw UnimplementedError();
+  }
+  
+  @override
+  Future<List<String>> getBatteryOptimizationTips() {
+    // TODO: implement getBatteryOptimizationTips
+    throw UnimplementedError();
+  }
+  
+  @override
+  void setBatteryInfoChangeCallback(Function(Map<String, dynamic> batteryInfo) callback) {
+    // TODO: implement setBatteryInfoChangeCallback
+  }
+  
+  @override
+  Future<bool?> startBatteryInfoListening({int intervalMs = 5000}) {
+    // TODO: implement startBatteryInfoListening
+    throw UnimplementedError();
+  }
+  
+  @override
+  Future<bool?> stopBatteryInfoListening() {
+    // TODO: implement stopBatteryInfoListening
+    throw UnimplementedError();
+  }
 }
 
 void main() {

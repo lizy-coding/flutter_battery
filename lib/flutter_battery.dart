@@ -1,6 +1,65 @@
 import 'flutter_battery_platform_interface.dart';
 export 'battery_animation.dart';
 
+/// 电池状态枚举
+enum BatteryState {
+  NORMAL,    // 正常状态
+  LOW,       // 低电量状态
+  CRITICAL,  // 极低电量状态
+  CHARGING,  // 充电状态
+  FULL       // 已充满状态
+}
+
+/// 电池信息类
+class BatteryInfo {
+  final int level;
+  final bool isCharging;
+  final double temperature;
+  final double voltage;
+  final BatteryState state;
+  final int timestamp;
+  
+  BatteryInfo({
+    required this.level,
+    required this.isCharging,
+    required this.temperature,
+    required this.voltage,
+    required this.state,
+    required this.timestamp,
+  });
+  
+  /// 从Map创建电池信息对象
+  factory BatteryInfo.fromMap(Map<String, dynamic> map) {
+    return BatteryInfo(
+      level: map['level'] as int? ?? 0,
+      isCharging: map['isCharging'] as bool? ?? false,
+      temperature: (map['temperature'] as num?)?.toDouble() ?? 0.0,
+      voltage: (map['voltage'] as num?)?.toDouble() ?? 0.0,
+      state: _parseState(map['state'] as String?),
+      timestamp: map['timestamp'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+  
+  /// 解析电池状态字符串
+  static BatteryState _parseState(String? stateStr) {
+    if (stateStr == null) return BatteryState.NORMAL;
+    
+    try {
+      return BatteryState.values.firstWhere(
+        (e) => e.toString() == 'BatteryState.$stateStr',
+        orElse: () => BatteryState.NORMAL,
+      );
+    } catch (_) {
+      return BatteryState.NORMAL;
+    }
+  }
+  
+  @override
+  String toString() => 'BatteryInfo(level: $level%, isCharging: $isCharging, '
+                      'temperature: ${temperature.toStringAsFixed(1)}°C, '
+                      'voltage: ${voltage.toStringAsFixed(2)}V, state: $state)';
+}
+
 class FlutterBattery {
   Future<String?> getPlatformVersion() {
     return FlutterBatteryPlatform.instance.getPlatformVersion();
@@ -11,6 +70,17 @@ class FlutterBattery {
     return FlutterBatteryPlatform.instance.getBatteryLevel();
   }
   
+  /// 获取电池完整信息
+  Future<BatteryInfo> getBatteryInfo() async {
+    final infoMap = await FlutterBatteryPlatform.instance.getBatteryInfo();
+    return BatteryInfo.fromMap(infoMap);
+  }
+  
+  /// 获取电池优化建议
+  Future<List<String>> getBatteryOptimizationTips() {
+    return FlutterBatteryPlatform.instance.getBatteryOptimizationTips();
+  }
+  
   /// 获取电池信息流
   /// 
   /// 返回包含电池信息的事件流，每个事件包含：
@@ -18,6 +88,31 @@ class FlutterBattery {
   /// - timestamp: 时间戳（毫秒）
   Stream<Map<String, dynamic>> get batteryStream {
     return FlutterBatteryPlatform.instance.batteryStream;
+  }
+  
+  /// 获取格式化的电池信息流
+  /// 
+  /// 将原始的电池信息转换为格式化的 BatteryInfo 对象
+  Stream<BatteryInfo> get batteryInfoStream {
+    return batteryStream.map((event) {
+      // 检查是否包含完整的电池信息
+      if (event.containsKey('type') && event['type'] == 'BATTERY_INFO') {
+        return BatteryInfo.fromMap(event);
+      }
+      
+      // 兼容简单电池电量信息
+      final int level = event['batteryLevel'] as int? ?? 0;
+      final int timestamp = event['timestamp'] as int? ?? DateTime.now().millisecondsSinceEpoch;
+      
+      return BatteryInfo(
+        level: level,
+        isCharging: false,
+        temperature: 0.0,
+        voltage: 0.0,
+        state: level <= 20 ? BatteryState.LOW : BatteryState.NORMAL,
+        timestamp: timestamp,
+      );
+    });
   }
   
   /// 设置电池信息推送间隔
@@ -37,9 +132,18 @@ class FlutterBattery {
   /// 设置电池电量变化监听
   /// 
   /// [onBatteryLevelChanged] 电池电量变化回调
-  /// 返回一个监听句柄，可用于移除监听
   void setBatteryLevelChangeListener(Function(int batteryLevel) onBatteryLevelChanged) {
     FlutterBatteryPlatform.instance.setBatteryLevelChangeCallback(onBatteryLevelChanged);
+  }
+  
+  /// 设置电池信息变化监听
+  /// 
+  /// [onBatteryInfoChanged] 电池信息变化回调
+  void setBatteryInfoChangeListener(Function(BatteryInfo info) onBatteryInfoChanged) {
+    FlutterBatteryPlatform.instance.setBatteryInfoChangeCallback((Map<String, dynamic> infoMap) {
+      final info = BatteryInfo.fromMap(infoMap);
+      onBatteryInfoChanged(info);
+    });
   }
   
   /// 开始监听电池电量变化
@@ -50,6 +154,20 @@ class FlutterBattery {
   /// 停止监听电池电量变化
   Future<bool?> stopBatteryLevelListening() {
     return FlutterBatteryPlatform.instance.stopBatteryLevelListening();
+  }
+  
+  /// 开始监听电池信息变化
+  /// 
+  /// [intervalMs] 推送间隔（毫秒）
+  Future<bool?> startBatteryInfoListening({int intervalMs = 5000}) {
+    return FlutterBatteryPlatform.instance.startBatteryInfoListening(
+      intervalMs: intervalMs,
+    );
+  }
+  
+  /// 停止监听电池信息变化
+  Future<bool?> stopBatteryInfoListening() {
+    return FlutterBatteryPlatform.instance.stopBatteryInfoListening();
   }
   
   /// 设置电池低电量阈值监控

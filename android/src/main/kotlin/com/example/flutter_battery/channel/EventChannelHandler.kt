@@ -1,12 +1,10 @@
 package com.example.flutter_battery.channel
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import com.example.flutter_battery.core.BatteryMonitor
+import com.example.flutter_battery.core.TimerManager
 import io.flutter.plugin.common.EventChannel
-import java.util.Timer
-import java.util.TimerTask
+import java.util.HashMap
 
 /**
  * 事件通道处理器
@@ -21,8 +19,11 @@ class EventChannelHandler(
     // 事件接收器
     private var eventSink: EventChannel.EventSink? = null
     
-    // 推送定时器
-    private var pushTimer: Timer? = null
+    // 定时器管理器
+    private val timerManager = TimerManager()
+    
+    // 电池信息推送定时器
+    private val batteryInfoManager = TimerManager()
     
     // 默认推送间隔（毫秒）
     private var pushIntervalMs: Long = 1000
@@ -33,12 +34,21 @@ class EventChannelHandler(
     // 是否启用防抖动（仅在电量变化时推送）
     private var enableDebounce: Boolean = true
     
+    // 是否启用完整电池信息推送
+    private var enableBatteryInfoPush: Boolean = false
+    
     /**
      * 初始化
      */
     init {
         // 设置事件处理器
         eventChannel.setStreamHandler(this)
+        
+        // 配置电池电量定时器任务
+        timerManager.setTask { pushBatteryInfo() }
+        
+        // 配置完整电池信息定时器任务
+        batteryInfoManager.setTask { pushCompleteBatteryInfo() }
     }
     
     /**
@@ -50,54 +60,74 @@ class EventChannelHandler(
         this.pushIntervalMs = intervalMs
         this.enableDebounce = enableDebounce
         
-        // 如果定时器已启动，重启定时器应用新的间隔
-        if (pushTimer != null) {
-            stopPushTimer()
-            startPushTimer()
+        // 更新定时器间隔
+        timerManager.setInterval(intervalMs)
+    }
+    
+    /**
+     * 设置电池信息推送
+     * @param enable 是否启用
+     * @param intervalMs 推送间隔（毫秒）
+     */
+    fun setBatteryInfoPush(enable: Boolean, intervalMs: Long = 5000) {
+        this.enableBatteryInfoPush = enable
+        
+        if (enable) {
+            batteryInfoManager.setInterval(intervalMs)
+            
+            if (eventSink != null) {
+                batteryInfoManager.start()
+            }
+        } else {
+            batteryInfoManager.stop()
         }
     }
     
     /**
-     * 开始推送定时器
-     */
-    private fun startPushTimer() {
-        // 停止之前的定时器
-        stopPushTimer()
-        
-        // 创建新的定时器
-        pushTimer = Timer()
-        pushTimer?.scheduleAtFixedRate(object : TimerTask() {
-            override fun run() {
-                Handler(Looper.getMainLooper()).post {
-                    pushBatteryInfo()
-                }
-            }
-        }, 0, pushIntervalMs)
-    }
-    
-    /**
-     * 停止推送定时器
-     */
-    private fun stopPushTimer() {
-        pushTimer?.cancel()
-        pushTimer = null
-    }
-    
-    /**
-     * 推送电池信息
+     * 推送电池简要信息
      */
     private fun pushBatteryInfo() {
-        val currentLevel = batteryMonitor.getBatteryLevel()
-        
-        // 如果启用防抖动，则只在电量变化时推送
-        if (!enableDebounce || currentLevel != lastPushedBatteryLevel) {
-            lastPushedBatteryLevel = currentLevel
+        try {
+            val currentLevel = batteryMonitor.getBatteryLevel()
             
-            val batteryInfo = HashMap<String, Any>()
-            batteryInfo["batteryLevel"] = currentLevel
-            batteryInfo["timestamp"] = System.currentTimeMillis()
+            // 如果启用防抖动，则只在电量变化时推送
+            if (!enableDebounce || currentLevel != lastPushedBatteryLevel) {
+                lastPushedBatteryLevel = currentLevel
+                
+                val batteryInfo = HashMap<String, Any>(2) // 预设容量
+                batteryInfo["batteryLevel"] = currentLevel
+                batteryInfo["timestamp"] = System.currentTimeMillis()
+                
+                eventSink?.success(batteryInfo)
+            }
+        } catch (e: Exception) {
+            eventSink?.error(
+                "BATTERY_ERROR",
+                "获取电池信息失败: ${e.message}",
+                e.stackTraceToString()
+            )
+        }
+    }
+    
+    /**
+     * 推送完整电池信息
+     */
+    private fun pushCompleteBatteryInfo() {
+        try {
+            val batteryInfo = batteryMonitor.getBatteryInfo()
             
-            eventSink?.success(batteryInfo)
+            // 添加消息类型标记
+            val message = HashMap<String, Any>(batteryInfo.size + 1)
+            message.putAll(batteryInfo)
+            message["type"] = "BATTERY_INFO"
+            
+            eventSink?.success(message)
+        } catch (e: Exception) {
+            eventSink?.error(
+                "BATTERY_INFO_ERROR",
+                "获取完整电池信息失败: ${e.message}",
+                e.stackTraceToString()
+            )
         }
     }
     
@@ -111,27 +141,53 @@ class EventChannelHandler(
         if (arguments is Map<*, *>) {
             val interval = (arguments["pushIntervalMs"] as? Number)?.toLong() ?: pushIntervalMs
             val debounce = (arguments["enableDebounce"] as? Boolean) ?: enableDebounce
+            val infoPush = (arguments["enableBatteryInfoPush"] as? Boolean) ?: enableBatteryInfoPush
+            val infoInterval = (arguments["batteryInfoIntervalMs"] as? Number)?.toLong() ?: 5000L
+            
             setPushInterval(interval, debounce)
+            
+            if (infoPush) {
+                setBatteryInfoPush(true, infoInterval)
+            }
         }
         
-        // 启动推送定时器
-        startPushTimer()
+        // 启动电池电量推送定时器
+        timerManager.start()
+        
+        // 如果启用了电池信息推送，启动对应定时器
+        if (enableBatteryInfoPush) {
+            batteryInfoManager.start()
+        }
     }
     
     /**
      * 当监听取消
      */
     override fun onCancel(arguments: Any?) {
-        stopPushTimer()
+        stopAllTimers()
         eventSink = null
+    }
+    
+    /**
+     * 停止所有定时器
+     */
+    private fun stopAllTimers() {
+        timerManager.stop()
+        batteryInfoManager.stop()
     }
     
     /**
      * 清理资源
      */
     fun dispose() {
-        stopPushTimer()
-        eventSink = null
-        eventChannel.setStreamHandler(null)
+        synchronized(this) {
+            stopAllTimers()
+            
+            timerManager.dispose()
+            batteryInfoManager.dispose()
+            
+            eventSink = null
+            eventChannel.setStreamHandler(null)
+        }
     }
 } 

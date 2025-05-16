@@ -32,6 +32,16 @@ abstract class FlutterBatteryPlatform extends PlatformInterface {
     throw UnimplementedError('getBatteryLevel() has not been implemented.');
   }
   
+  /// 获取电池完整信息
+  Future<Map<String, dynamic>> getBatteryInfo() {
+    throw UnimplementedError('getBatteryInfo() has not been implemented.');
+  }
+  
+  /// 获取电池优化建议
+  Future<List<String>> getBatteryOptimizationTips() {
+    throw UnimplementedError('getBatteryOptimizationTips() has not been implemented.');
+  }
+  
   /// 设置低电量回调函数
   void setLowBatteryCallback(Function(int batteryLevel) callback) {
     throw UnimplementedError('setLowBatteryCallback() has not been implemented.');
@@ -42,6 +52,11 @@ abstract class FlutterBatteryPlatform extends PlatformInterface {
     throw UnimplementedError('setBatteryLevelChangeCallback() has not been implemented.');
   }
   
+  /// 设置电池信息变化回调函数
+  void setBatteryInfoChangeCallback(Function(Map<String, dynamic> batteryInfo) callback) {
+    throw UnimplementedError('setBatteryInfoChangeCallback() has not been implemented.');
+  }
+  
   /// 开始监听电池电量变化
   Future<bool?> startBatteryLevelListening() {
     throw UnimplementedError('startBatteryLevelListening() has not been implemented.');
@@ -50,6 +65,18 @@ abstract class FlutterBatteryPlatform extends PlatformInterface {
   /// 停止监听电池电量变化
   Future<bool?> stopBatteryLevelListening() {
     throw UnimplementedError('stopBatteryLevelListening() has not been implemented.');
+  }
+  
+  /// 开始监听完整电池信息变化
+  Future<bool?> startBatteryInfoListening({
+    int intervalMs = 5000,
+  }) {
+    throw UnimplementedError('startBatteryInfoListening() has not been implemented.');
+  }
+  
+  /// 停止监听完整电池信息变化
+  Future<bool?> stopBatteryInfoListening() {
+    throw UnimplementedError('stopBatteryInfoListening() has not been implemented.');
   }
   
   /// 获取电池电量信息流
