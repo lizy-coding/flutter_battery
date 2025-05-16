@@ -21,11 +21,21 @@ class MethodChannelHandler(
 
     private var activity: android.app.Activity? = null
     
+    // 事件通道处理器
+    private var eventChannelHandler: EventChannelHandler? = null
+    
     /**
      * 设置当前活动
      */
     fun setActivity(activity: android.app.Activity?) {
         this.activity = activity
+    }
+    
+    /**
+     * 设置事件通道处理器
+     */
+    fun setEventChannelHandler(handler: EventChannelHandler) {
+        eventChannelHandler = handler
     }
     
     /**
@@ -107,6 +117,23 @@ class MethodChannelHandler(
                     result.error("BATTERY_MONITORING_ERROR", "停止电池监控失败: ${e.message}", null)
                 }
             }
+            "setPushInterval" -> {
+                try {
+                    val intervalMs = call.argument<Number>("intervalMs")?.toLong() ?: 1000
+                    val enableDebounce = call.argument<Boolean>("enableDebounce") ?: true
+                    
+                    // 同时设置两种推送间隔：EventChannel和BatteryMonitor
+                    // 1. 更新 EventChannel 推送频率
+                    eventChannelHandler?.setPushInterval(intervalMs, enableDebounce)
+                    
+                    // 2. 更新 BatteryMonitor 推送频率
+                    batteryMonitor.setBatteryLevelPushInterval(intervalMs, enableDebounce)
+                    
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("EVENT_CHANNEL_ERROR", "设置推送间隔失败: ${e.message}", null)
+                }
+            }
             "scheduleNotification" -> {
                 try {
                     val title = call.argument<String>("title") ?: "通知"
@@ -150,5 +177,6 @@ class MethodChannelHandler(
      */
     fun dispose() {
         activity = null
+        eventChannelHandler = null
     }
 }

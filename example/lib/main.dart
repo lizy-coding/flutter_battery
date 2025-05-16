@@ -39,6 +39,9 @@ class _MyAppState extends State<MyApp> {
   // 电池电量历史记录
   final List<BatteryRecord> _batteryHistory = [];
 
+  int _batteryPushInterval = 1;
+  bool _enablePushDebounce = true;
+
   @override
   void initState() {
     super.initState();
@@ -92,6 +95,12 @@ class _MyAppState extends State<MyApp> {
   // 开始电池电量变化监听
   Future<void> _startBatteryLevelListening() async {
     try {
+      // 设置推送间隔
+      await _flutterBatteryPlugin.setPushInterval(
+        intervalMs: _batteryPushInterval * 1000, // 转换为毫秒
+        enableDebounce: _enablePushDebounce,
+      );
+      
       // 设置电池电量变化回调
       _flutterBatteryPlugin.setBatteryLevelChangeListener((batteryLevel) {
         if (!mounted) return;
@@ -109,7 +118,10 @@ class _MyAppState extends State<MyApp> {
           }
         });
         
-        _showMessage('电池电量变化: $batteryLevel%');
+        // 避免过多提示，只在启用防抖动时显示消息
+        if (_enablePushDebounce) {
+          _showMessage('电池电量变化: $batteryLevel%');
+        }
       });
       
       // 开始监听
@@ -119,7 +131,7 @@ class _MyAppState extends State<MyApp> {
         _batteryListeningActive = true;
       });
       
-      _showMessage('已开启电池电量变化监听');
+      _showMessage('已开启电池电量变化监听，间隔: $_batteryPushInterval 秒');
     } catch (e) {
       _showMessage('开启电池电量变化监听失败: $e');
     }
@@ -296,6 +308,42 @@ class _MyAppState extends State<MyApp> {
                       children: [
                         const Text('电池电量变化监听', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 16),
+                        // 添加推送间隔设置
+                        Row(
+                          children: [
+                            const Text('推送间隔: '),
+                            Expanded(
+                              child: Slider(
+                                value: _batteryPushInterval.toDouble(),
+                                min: 1.0,
+                                max: 10.0,
+                                divisions: 9,
+                                label: '${_batteryPushInterval}秒',
+                                onChanged: _batteryListeningActive ? null : (value) {
+                                  setState(() {
+                                    _batteryPushInterval = value.round();
+                                  });
+                                },
+                              ),
+                            ),
+                            Text('${_batteryPushInterval}秒'),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // 添加防抖动选项
+                        SwitchListTile(
+                          title: const Text('仅在电量变化时推送'),
+                          subtitle: const Text('减少相同电量的重复推送'),
+                          value: _enablePushDebounce,
+                          onChanged: _batteryListeningActive ? null : (value) {
+                            setState(() {
+                              _enablePushDebounce = value;
+                            });
+                          },
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        const SizedBox(height: 8),
                         Row(
                           children: [
                             Expanded(
@@ -504,6 +552,34 @@ class _MyAppState extends State<MyApp> {
                   onPressed: _scheduleNotification,
                   child: const Text('调度延迟通知'),
                 ),
+                
+                // 添加电池流监控卡片
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('电池信息流', style: Theme.of(context).textTheme.titleLarge),
+                        const SizedBox(height: 10),
+                        const Text('实时监控电池电量变化并控制推送频率'),
+                        const SizedBox(height: 16),
+                        Center(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context, 
+                                MaterialPageRoute(builder: (_) => const BatteryStreamPage())
+                              );
+                            },
+                            child: const Text('打开电池流监控'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -575,6 +651,145 @@ class LowBatteryDialog extends StatelessWidget {
           child: const Text('我知道了'),
         ),
       ],
+    );
+  }
+}
+
+class BatteryStreamPage extends StatefulWidget {
+  const BatteryStreamPage({Key? key}) : super(key: key);
+
+  @override
+  State<BatteryStreamPage> createState() => _BatteryStreamPageState();
+}
+
+class _BatteryStreamPageState extends State<BatteryStreamPage> {
+  final _flutterBatteryPlugin = FlutterBattery();
+  double _sliderValue = 1.0; // 默认推送间隔为1秒
+  bool _enableDebounce = true; // 默认启用防抖动
+  bool _isStreaming = false; // 是否正在监听流
+  final List<Map<String, dynamic>> _batteryEvents = [];
+  StreamSubscription? _streamSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _streamSubscription?.cancel();
+    super.dispose();
+  }
+
+  // 开始或停止监听电池流
+  void _toggleStreaming() {
+    setState(() {
+      if (_isStreaming) {
+        _streamSubscription?.cancel();
+        _streamSubscription = null;
+      } else {
+        // 设置推送间隔（毫秒）
+        int intervalMs = (_sliderValue * 1000).round();
+        _flutterBatteryPlugin.setPushInterval(
+          intervalMs: intervalMs,
+          enableDebounce: _enableDebounce,
+        );
+
+        // 订阅电池流
+        _streamSubscription = _flutterBatteryPlugin.batteryStream.listen((event) {
+          setState(() {
+            // 限制事件列表长度，防止过长
+            if (_batteryEvents.length > 50) {
+              _batteryEvents.removeAt(0);
+            }
+            _batteryEvents.add(event);
+          });
+        });
+      }
+      _isStreaming = !_isStreaming;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('电池信息流示例'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '推送间隔设置',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text('间隔: '),
+                Expanded(
+                  child: Slider(
+                    value: _sliderValue,
+                    min: 0.1,
+                    max: 10.0,
+                    divisions: 99,
+                    onChanged: _isStreaming ? null : (value) {
+                      setState(() {
+                        _sliderValue = value;
+                      });
+                    },
+                  ),
+                ),
+                Text('${_sliderValue.toStringAsFixed(1)}秒'),
+              ],
+            ),
+            Row(
+              children: [
+                const Text('防抖动: '),
+                Switch(
+                  value: _enableDebounce,
+                  onChanged: _isStreaming ? null : (value) {
+                    setState(() {
+                      _enableDebounce = value;
+                    });
+                  },
+                ),
+                const Text('(仅在电量变化时推送)'),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _toggleStreaming,
+              child: Text(_isStreaming ? '停止监听' : '开始监听'),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '接收到的电池事件:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: _batteryEvents.isEmpty
+                  ? const Center(child: Text('暂无数据'))
+                  : ListView.builder(
+                      itemCount: _batteryEvents.length,
+                      itemBuilder: (context, index) {
+                        final event = _batteryEvents[_batteryEvents.length - index - 1];
+                        final timestamp = DateTime.fromMillisecondsSinceEpoch(
+                            event['timestamp'] as int);
+                        return ListTile(
+                          title: Text('电量: ${event['batteryLevel']}%'),
+                          subtitle: Text('时间: ${timestamp.hour}:${timestamp.minute}:${timestamp.second}.${timestamp.millisecond}'),
+                          leading: const Icon(Icons.battery_full),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

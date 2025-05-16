@@ -11,6 +11,29 @@ class FlutterBattery {
     return FlutterBatteryPlatform.instance.getBatteryLevel();
   }
   
+  /// 获取电池信息流
+  /// 
+  /// 返回包含电池信息的事件流，每个事件包含：
+  /// - batteryLevel: 电池电量百分比
+  /// - timestamp: 时间戳（毫秒）
+  Stream<Map<String, dynamic>> get batteryStream {
+    return FlutterBatteryPlatform.instance.batteryStream;
+  }
+  
+  /// 设置电池信息推送间隔
+  /// 
+  /// [intervalMs] 推送间隔（毫秒）
+  /// [enableDebounce] 是否启用防抖动（仅在电量变化时推送）
+  Future<bool?> setPushInterval({
+    required int intervalMs,
+    bool enableDebounce = true,
+  }) {
+    return FlutterBatteryPlatform.instance.setPushInterval(
+      intervalMs: intervalMs,
+      enableDebounce: enableDebounce,
+    );
+  }
+  
   /// 设置电池电量变化监听
   /// 
   /// [onBatteryLevelChanged] 电池电量变化回调

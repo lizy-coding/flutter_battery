@@ -52,6 +52,19 @@ abstract class FlutterBatteryPlatform extends PlatformInterface {
     throw UnimplementedError('stopBatteryLevelListening() has not been implemented.');
   }
   
+  /// 获取电池电量信息流
+  Stream<Map<String, dynamic>> get batteryStream {
+    throw UnimplementedError('batteryStream has not been implemented.');
+  }
+  
+  /// 设置电池信息推送间隔
+  Future<bool?> setPushInterval({
+    required int intervalMs,
+    bool enableDebounce = true,
+  }) {
+    throw UnimplementedError('setPushInterval() has not been implemented.');
+  }
+  
   /// 设置电池低电量阈值监控
   Future<bool?> setBatteryLevelThreshold({
     required int threshold,

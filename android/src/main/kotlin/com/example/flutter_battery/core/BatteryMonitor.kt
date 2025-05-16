@@ -37,6 +37,31 @@ class BatteryMonitor(private val context: Context) {
     // 上一次电量值，用于过滤相同的电量变化
     private var lastBatteryLevel: Int = -1
     
+    // 电池电量推送定时器
+    private var batteryLevelPushTimer: Timer? = null
+    
+    // 电池电量推送间隔（毫秒）
+    private var batteryLevelPushIntervalMs: Long = 1000
+    
+    // 是否启用电量变化防抖动（仅在电量变化时推送）
+    private var enableBatteryLevelDebounce: Boolean = true
+    
+    /**
+     * 设置电池电量推送间隔
+     * @param intervalMs 推送间隔（毫秒）
+     * @param enableDebounce 是否启用防抖动
+     */
+    fun setBatteryLevelPushInterval(intervalMs: Long, enableDebounce: Boolean) {
+        batteryLevelPushIntervalMs = intervalMs
+        enableBatteryLevelDebounce = enableDebounce
+        
+        // 如果当前正在监听，则重新启动推送定时器
+        if (batteryLevelChangeReceiver != null) {
+            stopBatteryLevelPushTimer()
+            startBatteryLevelPushTimer()
+        }
+    }
+    
     /**
      * 设置低电量回调
      */
@@ -75,11 +100,8 @@ class BatteryMonitor(private val context: Context) {
                     val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
                     val batteryPct = (level * 100) / scale
                     
-                    // 如果电量与上次不同才通知，避免重复通知
-                    if (batteryPct != lastBatteryLevel) {
-                        lastBatteryLevel = batteryPct
-                        onBatteryLevelChangeCallback?.invoke(batteryPct)
-                    }
+                    // 记录最新的电池电量（供定时器使用）
+                    lastBatteryLevel = batteryPct
                 }
             }
         }
@@ -88,16 +110,55 @@ class BatteryMonitor(private val context: Context) {
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
         context.registerReceiver(batteryLevelChangeReceiver, filter)
         
-        // 立即获取并发送一次当前电量
-        val currentLevel = getBatteryLevel()
-        lastBatteryLevel = currentLevel
-        onBatteryLevelChangeCallback?.invoke(currentLevel)
+        // 立即获取当前电量
+        lastBatteryLevel = getBatteryLevel()
+        
+        // 启动定时推送电池电量
+        startBatteryLevelPushTimer()
+    }
+    
+    /**
+     * 启动电池电量推送定时器
+     */
+    private fun startBatteryLevelPushTimer() {
+        // 停止之前的定时器
+        stopBatteryLevelPushTimer()
+        
+        // 创建新的定时器
+        batteryLevelPushTimer = Timer()
+        batteryLevelPushTimer?.scheduleAtFixedRate(object : TimerTask() {
+            private var lastPushedLevel = -1
+            
+            override fun run() {
+                Handler(Looper.getMainLooper()).post {
+                    val currentLevel = lastBatteryLevel
+                    
+                    // 如果启用防抖动，只有在电量变化时才推送
+                    if (!enableBatteryLevelDebounce || currentLevel != lastPushedLevel) {
+                        lastPushedLevel = currentLevel
+                        onBatteryLevelChangeCallback?.invoke(currentLevel)
+                    }
+                }
+            }
+        }, 0, batteryLevelPushIntervalMs)
+    }
+    
+    /**
+     * 停止电池电量推送定时器
+     */
+    private fun stopBatteryLevelPushTimer() {
+        batteryLevelPushTimer?.cancel()
+        batteryLevelPushTimer = null
     }
     
     /**
      * 停止监听电池电量变化
      */
     fun stopBatteryLevelListening() {
+        // 停止推送定时器
+        stopBatteryLevelPushTimer()
+        
+        // 注销广播接收器
         batteryLevelChangeReceiver?.let {
             try {
                 context.unregisterReceiver(it)

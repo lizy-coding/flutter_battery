@@ -9,6 +9,10 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   @visibleForTesting
   final methodChannel = const MethodChannel('flutter_battery');
   
+  /// The event channel used to receive battery updates
+  @visibleForTesting
+  final eventChannel = const EventChannel('flutter_battery/battery_stream');
+  
   // 电池低电量回调
   Function(int batteryLevel)? _lowBatteryCallback;
   
@@ -73,6 +77,36 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   @override
   Future<bool?> stopBatteryLevelListening() async {
     final result = await methodChannel.invokeMethod<bool>('stopBatteryLevelListening');
+    return result;
+  }
+  
+  @override
+  Stream<Map<String, dynamic>> get batteryStream {
+    return eventChannel.receiveBroadcastStream().map((dynamic event) {
+      if (event is! Map) {
+        return <String, dynamic>{
+          'batteryLevel': 0,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          'error': 'Invalid event format',
+        };
+      }
+      final Map<dynamic, dynamic> map = event as Map<dynamic, dynamic>;
+      return map.cast<String, dynamic>();
+    });
+  }
+  
+  @override
+  Future<bool?> setPushInterval({
+    required int intervalMs,
+    bool enableDebounce = true,
+  }) async {
+    final result = await methodChannel.invokeMethod<bool>(
+      'setPushInterval',
+      {
+        'intervalMs': intervalMs,
+        'enableDebounce': enableDebounce,
+      },
+    );
     return result;
   }
   
