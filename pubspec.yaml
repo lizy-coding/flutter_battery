@@ -1,6 +1,6 @@
 name: flutter_battery
 description: Flutter plugin for monitoring battery level and sending notifications.
-version: 0.0.2
+version: 0.0.3
 homepage: https://github.com/yourname/flutter_battery
 
 environment:

@@ -10,6 +10,68 @@ enum BatteryState {
   FULL       // 已充满状态
 }
 
+/// 监听配置类，用于配置电池监控选项
+class BatteryMonitorConfig {
+  /// 是否监控电池电量
+  final bool monitorBatteryLevel;
+  
+  /// 是否监控电池完整信息
+  final bool monitorBatteryInfo;
+  
+  /// 推送间隔（毫秒）
+  final int intervalMs;
+  
+  /// 电池信息推送间隔（毫秒）
+  final int batteryInfoIntervalMs;
+  
+  /// 是否启用防抖动（仅在电量变化时推送）
+  final bool enableDebounce;
+  
+  /// 创建监控配置
+  BatteryMonitorConfig({
+    this.monitorBatteryLevel = true,
+    this.monitorBatteryInfo = false,
+    this.intervalMs = 1000,
+    this.batteryInfoIntervalMs = 5000,
+    this.enableDebounce = true,
+  });
+}
+
+/// 电池监控配置类，用于配置低电量监控
+class BatteryLevelMonitorConfig {
+  /// 是否启用监控
+  final bool enable;
+  
+  /// 电池电量阈值（百分比）
+  final int threshold;
+  
+  /// 通知标题
+  final String title;
+  
+  /// 通知内容
+  final String message;
+  
+  /// 检查间隔（分钟）
+  final int intervalMinutes;
+  
+  /// 是否使用Flutter渲染通知
+  final bool useFlutterRendering;
+  
+  /// 低电量回调
+  final Function(int)? onLowBattery;
+  
+  /// 创建低电量监控配置
+  BatteryLevelMonitorConfig({
+    required this.enable,
+    this.threshold = 20,
+    this.title = "电池电量低",
+    this.message = "您的电池电量已经低于阈值，请及时充电",
+    this.intervalMinutes = 15,
+    this.useFlutterRendering = false,
+    this.onLowBattery,
+  });
+}
+
 /// 电池信息类
 class BatteryInfo {
   final int level;
@@ -60,7 +122,35 @@ class BatteryInfo {
                       'voltage: ${voltage.toStringAsFixed(2)}V, state: $state)';
 }
 
+/// 高级电池配置类，整合所有电池相关设置
+class BatteryConfiguration {
+  /// 基本监听配置
+  final BatteryMonitorConfig? monitorConfig;
+  
+  /// 低电量监控配置
+  final BatteryLevelMonitorConfig? lowBatteryConfig;
+  
+  /// 电池电量变化回调
+  final Function(int batteryLevel)? onBatteryLevelChange;
+  
+  /// 电池信息变化回调
+  final Function(BatteryInfo info)? onBatteryInfoChange;
+  
+  /// 低电量回调
+  final Function(int batteryLevel)? onLowBattery;
+  
+  /// 创建高级电池配置
+  BatteryConfiguration({
+    this.monitorConfig,
+    this.lowBatteryConfig,
+    this.onBatteryLevelChange,
+    this.onBatteryInfoChange,
+    this.onLowBattery,
+  });
+}
+
 class FlutterBattery {
+  /// 获取平台版本
   Future<String?> getPlatformVersion() {
     return FlutterBatteryPlatform.instance.getPlatformVersion();
   }
@@ -81,18 +171,12 @@ class FlutterBattery {
     return FlutterBatteryPlatform.instance.getBatteryOptimizationTips();
   }
   
-  /// 获取电池信息流
-  /// 
-  /// 返回包含电池信息的事件流，每个事件包含：
-  /// - batteryLevel: 电池电量百分比
-  /// - timestamp: 时间戳（毫秒）
+  /// 获取电池信息流（原始数据）
   Stream<Map<String, dynamic>> get batteryStream {
     return FlutterBatteryPlatform.instance.batteryStream;
   }
   
   /// 获取格式化的电池信息流
-  /// 
-  /// 将原始的电池信息转换为格式化的 BatteryInfo 对象
   Stream<BatteryInfo> get batteryInfoStream {
     return batteryStream.map((event) {
       // 检查是否包含完整的电池信息
@@ -115,10 +199,38 @@ class FlutterBattery {
     });
   }
   
-  /// 设置电池信息推送间隔
+  /// 配置所有电池相关回调
   /// 
-  /// [intervalMs] 推送间隔（毫秒）
-  /// [enableDebounce] 是否启用防抖动（仅在电量变化时推送）
+  /// 一次性设置所有回调，减少多次调用接口
+  /// [onLowBattery] 低电量回调
+  /// [onBatteryLevelChange] 电池电量变化回调
+  /// [onBatteryInfoChange] 电池信息变化回调
+  void configureBatteryCallbacks({
+    Function(int batteryLevel)? onLowBattery,
+    Function(int batteryLevel)? onBatteryLevelChange,
+    Function(BatteryInfo info)? onBatteryInfoChange,
+  }) {
+    // 设置低电量回调
+    if (onLowBattery != null) {
+      FlutterBatteryPlatform.instance.setLowBatteryCallback(onLowBattery);
+    }
+    
+    // 设置电池电量变化回调
+    if (onBatteryLevelChange != null) {
+      FlutterBatteryPlatform.instance.setBatteryLevelChangeCallback(onBatteryLevelChange);
+    }
+    
+    // 设置电池信息变化回调
+    if (onBatteryInfoChange != null) {
+      FlutterBatteryPlatform.instance.setBatteryInfoChangeCallback((Map<String, dynamic> infoMap) {
+        final info = BatteryInfo.fromMap(infoMap);
+        onBatteryInfoChange(info);
+      });
+    }
+  }
+  
+  /// 设置电池电量推送间隔和防抖动
+  @Deprecated('请使用configureBatteryMonitor方法代替')
   Future<bool?> setPushInterval({
     required int intervalMs,
     bool enableDebounce = true,
@@ -130,15 +242,13 @@ class FlutterBattery {
   }
   
   /// 设置电池电量变化监听
-  /// 
-  /// [onBatteryLevelChanged] 电池电量变化回调
+  @Deprecated('请使用configureBatteryCallbacks方法代替')
   void setBatteryLevelChangeListener(Function(int batteryLevel) onBatteryLevelChanged) {
     FlutterBatteryPlatform.instance.setBatteryLevelChangeCallback(onBatteryLevelChanged);
   }
   
   /// 设置电池信息变化监听
-  /// 
-  /// [onBatteryInfoChanged] 电池信息变化回调
+  @Deprecated('请使用configureBatteryCallbacks方法代替')
   void setBatteryInfoChangeListener(Function(BatteryInfo info) onBatteryInfoChanged) {
     FlutterBatteryPlatform.instance.setBatteryInfoChangeCallback((Map<String, dynamic> infoMap) {
       final info = BatteryInfo.fromMap(infoMap);
@@ -146,38 +256,66 @@ class FlutterBattery {
     });
   }
   
-  /// 开始监听电池电量变化
+  /// 配置电池监听
+  /// 
+  /// 一次性配置电池监听选项，减少多次调用接口
+  /// [config] 监听配置，包含监听类型、间隔等
+  /// 返回一个包含各项配置是否成功的Map
+  Future<Map<String, bool>> configureBatteryMonitor(BatteryMonitorConfig config) async {
+    return FlutterBatteryPlatform.instance.configureBatteryMonitor(
+      monitorBatteryLevel: config.monitorBatteryLevel,
+      monitorBatteryInfo: config.monitorBatteryInfo,
+      intervalMs: config.intervalMs,
+      batteryInfoIntervalMs: config.batteryInfoIntervalMs,
+      enableDebounce: config.enableDebounce,
+    );
+  }
+  
+  /// 开始监听电池电量变化（建议使用configureBatteryMonitor替代）
+  @Deprecated('请使用configureBatteryMonitor方法代替')
   Future<bool?> startBatteryLevelListening() {
     return FlutterBatteryPlatform.instance.startBatteryLevelListening();
   }
   
-  /// 停止监听电池电量变化
+  /// 停止监听电池电量变化（建议使用configureBatteryMonitor替代）
+  @Deprecated('请使用configureBatteryMonitor方法代替')
   Future<bool?> stopBatteryLevelListening() {
     return FlutterBatteryPlatform.instance.stopBatteryLevelListening();
   }
   
-  /// 开始监听电池信息变化
-  /// 
-  /// [intervalMs] 推送间隔（毫秒）
+  /// 开始监听电池信息变化（建议使用configureBatteryMonitor替代）
+  @Deprecated('请使用configureBatteryMonitor方法代替')
   Future<bool?> startBatteryInfoListening({int intervalMs = 5000}) {
     return FlutterBatteryPlatform.instance.startBatteryInfoListening(
       intervalMs: intervalMs,
     );
   }
   
-  /// 停止监听电池信息变化
+  /// 停止监听电池信息变化（建议使用configureBatteryMonitor替代）
+  @Deprecated('请使用configureBatteryMonitor方法代替')
   Future<bool?> stopBatteryInfoListening() {
     return FlutterBatteryPlatform.instance.stopBatteryInfoListening();
   }
   
-  /// 设置电池低电量阈值监控
+  /// 配置电池低电量监控
   /// 
-  /// [threshold] 电池电量阈值（百分比），低于此值将触发通知
-  /// [title] 通知标题
-  /// [message] 通知内容
-  /// [intervalMinutes] 检查间隔（分钟），默认15分钟
-  /// [useFlutterRendering] 是否使用Flutter渲染通知，如果为true，将通过回调通知Flutter
-  /// [onLowBattery] 当电池电量低于阈值且useFlutterRendering为true时的回调
+  /// 一次性配置低电量监控，可启用或停用
+  /// [config] 低电量监控配置
+  /// 返回配置是否成功
+  Future<bool?> configureBatteryMonitoring(BatteryLevelMonitorConfig config) {
+    return FlutterBatteryPlatform.instance.configureBatteryMonitoring(
+      enable: config.enable,
+      threshold: config.threshold,
+      title: config.title,
+      message: config.message,
+      intervalMinutes: config.intervalMinutes,
+      useFlutterRendering: config.useFlutterRendering,
+      onLowBattery: config.onLowBattery,
+    );
+  }
+  
+  /// 设置电池低电量阈值监控（建议使用configureBatteryMonitoring替代）
+  @Deprecated('请使用configureBatteryMonitoring方法代替')
   Future<bool?> setBatteryLevelThreshold({
     required int threshold,
     required String title,
@@ -200,16 +338,32 @@ class FlutterBattery {
     );
   }
   
-  /// 停止电池电量监控
+  /// 停止电池电量监控（建议使用configureBatteryMonitoring替代）
+  @Deprecated('请使用configureBatteryMonitoring方法代替')
   Future<bool?> stopBatteryMonitoring() {
     return FlutterBatteryPlatform.instance.stopBatteryMonitoring();
   }
   
-  /// 调度一个延迟通知
+  /// 发送通知
   /// 
+  /// 统一的通知发送方法，支持即时或延迟发送
   /// [title] 通知标题
   /// [message] 通知内容
-  /// [delayMinutes] 延迟分钟数（默认1分钟）
+  /// [delay] 延迟分钟数，0表示立即发送
+  Future<bool?> sendNotification({
+    required String title,
+    required String message,
+    int delay = 0,
+  }) {
+    return FlutterBatteryPlatform.instance.sendNotification(
+      title: title,
+      message: message,
+      delay: delay,
+    );
+  }
+  
+  /// 调度一个延迟通知（建议使用sendNotification替代）
+  @Deprecated('请使用sendNotification方法代替')
   Future<bool?> scheduleNotification({
     required String title,
     required String message,
@@ -222,10 +376,8 @@ class FlutterBattery {
     );
   }
   
-  /// 立即显示一个通知
-  /// 
-  /// [title] 通知标题
-  /// [message] 通知内容
+  /// 立即显示一个通知（建议使用sendNotification替代）
+  @Deprecated('请使用sendNotification方法代替')
   Future<bool?> showNotification({
     required String title,
     required String message,
@@ -234,5 +386,40 @@ class FlutterBattery {
       title: title,
       message: message,
     );
+  }
+  
+  /// 一次性配置所有电池相关设置
+  /// 
+  /// 高级API，整合了监控、回调和低电量设置
+  /// [config] 完整的电池配置
+  /// 返回配置结果，包含各项配置是否成功的信息
+  Future<Map<String, dynamic>> configureBattery(BatteryConfiguration config) async {
+    final result = <String, dynamic>{};
+    
+    // 1. 设置回调
+    if (config.onBatteryLevelChange != null || 
+        config.onBatteryInfoChange != null || 
+        config.onLowBattery != null) {
+      
+      configureBatteryCallbacks(
+        onBatteryLevelChange: config.onBatteryLevelChange,
+        onBatteryInfoChange: config.onBatteryInfoChange,
+        onLowBattery: config.onLowBattery,
+      );
+      
+      result['callbacksConfigured'] = true;
+    }
+    
+    // 2. 配置电池监听
+    if (config.monitorConfig != null) {
+      result['monitoringResults'] = await configureBatteryMonitor(config.monitorConfig!);
+    }
+    
+    // 3. 配置低电量监控
+    if (config.lowBatteryConfig != null) {
+      result['lowBatteryMonitoring'] = await configureBatteryMonitoring(config.lowBatteryConfig!);
+    }
+    
+    return result;
   }
 }

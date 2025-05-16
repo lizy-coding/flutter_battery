@@ -42,6 +42,10 @@ class _MyAppState extends State<MyApp> {
   int _batteryPushInterval = 1;
   bool _enablePushDebounce = true;
 
+  // 添加一个BatteryInfo变量存储完整信息
+  BatteryInfo? _batteryInfo;
+  bool _batteryInfoMonitoringActive = false;
+  
   @override
   void initState() {
     super.initState();
@@ -110,48 +114,49 @@ class _MyAppState extends State<MyApp> {
   // 开始电池电量变化监听
   Future<void> _startBatteryLevelListening() async {
     try {
-      // 设置推送间隔
-      await _flutterBatteryPlugin.setPushInterval(
-        intervalMs: _batteryPushInterval * 1000, // 转换为毫秒
-        enableDebounce: _enablePushDebounce,
-      );
-      
-      // 设置电池电量变化回调
-      _flutterBatteryPlugin.setBatteryLevelChangeListener((batteryLevel) {
-        if (!mounted) return;
-        
-        setState(() {
-          _batteryLevel = batteryLevel;
-          final now = DateTime.now();
-          
-          // 如果最后一条记录的电量与新电量相同且时间间隔小于1秒，则不添加新记录
-          if (_batteryHistory.isNotEmpty) {
-            final lastRecord = _batteryHistory.last;
-            final timeDiff = now.difference(lastRecord.timestamp).inSeconds;
-            if (lastRecord.level == batteryLevel && timeDiff < 1) {
-              return;
+      // 使用新的高级API
+      await _flutterBatteryPlugin.configureBattery(
+        BatteryConfiguration(
+          monitorConfig: BatteryMonitorConfig(
+            monitorBatteryLevel: true,
+            monitorBatteryInfo: false,
+            intervalMs: _batteryPushInterval * 1000, // 转换为毫秒
+            enableDebounce: _enablePushDebounce,
+          ),
+          onBatteryLevelChange: (batteryLevel) {
+            if (!mounted) return;
+            
+            setState(() {
+              _batteryLevel = batteryLevel;
+              final now = DateTime.now();
+              
+              // 如果最后一条记录的电量与新电量相同且时间间隔小于1秒，则不添加新记录
+              if (_batteryHistory.isNotEmpty) {
+                final lastRecord = _batteryHistory.last;
+                final timeDiff = now.difference(lastRecord.timestamp).inSeconds;
+                if (lastRecord.level == batteryLevel && timeDiff < 1) {
+                  return;
+                }
+              }
+              
+              _batteryHistory.add(BatteryRecord(
+                level: batteryLevel,
+                timestamp: now,
+              ));
+              
+              // 只保留最近的20条记录
+              if (_batteryHistory.length > 20) {
+                _batteryHistory.removeAt(0);
+              }
+            });
+            
+            // 避免过多提示，只在启用防抖动时显示消息
+            if (_enablePushDebounce) {
+              _showMessage('电池电量变化: $batteryLevel%');
             }
-          }
-          
-          _batteryHistory.add(BatteryRecord(
-            level: batteryLevel,
-            timestamp: now,
-          ));
-          
-          // 只保留最近的20条记录
-          if (_batteryHistory.length > 20) {
-            _batteryHistory.removeAt(0);
-          }
-        });
-        
-        // 避免过多提示，只在启用防抖动时显示消息
-        if (_enablePushDebounce) {
-          _showMessage('电池电量变化: $batteryLevel%');
-        }
-      });
-      
-      // 开始监听
-      await _flutterBatteryPlugin.startBatteryLevelListening();
+          },
+        ),
+      );
       
       setState(() {
         _batteryListeningActive = true;
@@ -166,7 +171,15 @@ class _MyAppState extends State<MyApp> {
   // 停止电池电量变化监听
   Future<void> _stopBatteryLevelListening() async {
     try {
-      await _flutterBatteryPlugin.stopBatteryLevelListening();
+      // 使用新的高级API
+      await _flutterBatteryPlugin.configureBattery(
+        BatteryConfiguration(
+          monitorConfig: BatteryMonitorConfig(
+            monitorBatteryLevel: false,
+            monitorBatteryInfo: false,
+          ),
+        ),
+      );
       
       setState(() {
         _batteryListeningActive = false;
@@ -187,27 +200,33 @@ class _MyAppState extends State<MyApp> {
       final String message = _batteryMessageController.text;
       final int interval = int.tryParse(_intervalController.text) ?? 1;
       
-      await _flutterBatteryPlugin.setBatteryLevelThreshold(
-        threshold: threshold,
-        title: title,
-        message: message,
-        intervalMinutes: interval,
-        useFlutterRendering: _useFlutterRendering,
-        onLowBattery: _useFlutterRendering ? (int batteryLevel) {
-          // 自定义显示低电量UI
-          if (!mounted) return;
-          
-          // 显示新的低电量警告对话框
-          showDialog(
-            context: _scaffoldMessengerKey.currentState!.context,
-            builder: (context) => LowBatteryDialog(
-              batteryLevel: batteryLevel,
-              onDismiss: () {
-                _showMessage('用户已关闭低电量警告');
-              },
-            ),
-          );
-        } : null,
+      // 使用新的高级API
+      await _flutterBatteryPlugin.configureBattery(
+        BatteryConfiguration(
+          lowBatteryConfig: BatteryLevelMonitorConfig(
+            enable: true,
+            threshold: threshold,
+            title: title,
+            message: message,
+            intervalMinutes: interval,
+            useFlutterRendering: _useFlutterRendering,
+            onLowBattery: _useFlutterRendering ? (int batteryLevel) {
+              // 自定义显示低电量UI
+              if (!mounted) return;
+              
+              // 显示新的低电量警告对话框
+              showDialog(
+                context: _scaffoldMessengerKey.currentState!.context,
+                builder: (context) => LowBatteryDialog(
+                  batteryLevel: batteryLevel,
+                  onDismiss: () {
+                    _showMessage('用户已关闭低电量警告');
+                  },
+                ),
+              );
+            } : null,
+          ),
+        ),
       );
       
       setState(() {
@@ -223,7 +242,14 @@ class _MyAppState extends State<MyApp> {
   // 停止电池监控
   Future<void> _stopBatteryMonitoring() async {
     try {
-      await _flutterBatteryPlugin.stopBatteryMonitoring();
+      // 使用新的高级API
+      await _flutterBatteryPlugin.configureBattery(
+        BatteryConfiguration(
+          lowBatteryConfig: BatteryLevelMonitorConfig(
+            enable: false,
+          ),
+        ),
+      );
       
       setState(() {
         _monitoringActive = false;
@@ -238,9 +264,11 @@ class _MyAppState extends State<MyApp> {
   // 显示立即通知
   Future<void> _showNotification() async {
     try {
-      await _flutterBatteryPlugin.showNotification(
+      // 使用整合的通知API
+      await _flutterBatteryPlugin.sendNotification(
         title: _titleController.text,
         message: _messageController.text,
+        delay: 0, // 立即发送
       );
       
       // 显示成功反馈
@@ -258,10 +286,11 @@ class _MyAppState extends State<MyApp> {
     try {
       int delay = int.tryParse(_delayController.text) ?? 1;
       
-      await _flutterBatteryPlugin.scheduleNotification(
+      // 使用整合的通知API
+      await _flutterBatteryPlugin.sendNotification(
         title: _titleController.text,
         message: _messageController.text,
-        delayMinutes: delay,
+        delay: delay, // 延迟发送
       );
       
       // 显示成功反馈
@@ -271,6 +300,125 @@ class _MyAppState extends State<MyApp> {
       // 显示错误信息
       if (!mounted) return;
       _showMessage('通知调度失败: $e');
+    }
+  }
+
+  // 清空电池历史记录
+  void _clearBatteryHistory() {
+    setState(() {
+      _batteryHistory.clear();
+    });
+    _showMessage('电池历史记录已清空');
+  }
+  
+  // 开始全面电池监控（同时监控电量和完整信息）
+  Future<void> _startCompleteBatteryMonitoring() async {
+    try {
+      // 使用高级API一次性配置所有需要的监控
+      final result = await _flutterBatteryPlugin.configureBattery(
+        BatteryConfiguration(
+          // 配置监控选项
+          monitorConfig: BatteryMonitorConfig(
+            monitorBatteryLevel: true,
+            monitorBatteryInfo: true,
+            intervalMs: _batteryPushInterval * 1000,
+            batteryInfoIntervalMs: 5000,
+            enableDebounce: _enablePushDebounce,
+          ),
+          // 配置低电量监控
+          lowBatteryConfig: BatteryLevelMonitorConfig(
+            enable: true,
+            threshold: int.tryParse(_thresholdController.text) ?? 20,
+            title: _batteryTitleController.text,
+            message: _batteryMessageController.text,
+            intervalMinutes: int.tryParse(_intervalController.text) ?? 1,
+            useFlutterRendering: _useFlutterRendering,
+          ),
+          // 电池电量变化回调
+          onBatteryLevelChange: (batteryLevel) {
+            if (!mounted) return;
+            
+            setState(() {
+              _batteryLevel = batteryLevel;
+              final now = DateTime.now();
+              
+              _batteryHistory.add(BatteryRecord(
+                level: batteryLevel,
+                timestamp: now,
+              ));
+              
+              // 只保留最近的20条记录
+              if (_batteryHistory.length > 20) {
+                _batteryHistory.removeAt(0);
+              }
+            });
+          },
+          // 电池完整信息变化回调
+          onBatteryInfoChange: (info) {
+            if (!mounted) return;
+            
+            setState(() {
+              _batteryInfo = info;
+              _batteryLevel = info.level; // 更新电量显示
+            });
+            
+            // 输出详细信息
+            _showMessage('电池信息更新: ${info.toString()}');
+          },
+          // 低电量回调
+          onLowBattery: _useFlutterRendering ? (batteryLevel) {
+            if (!mounted) return;
+            
+            showDialog(
+              context: _scaffoldMessengerKey.currentState!.context,
+              builder: (context) => LowBatteryDialog(
+                batteryLevel: batteryLevel,
+                onDismiss: () {
+                  _showMessage('用户已关闭低电量警告');
+                },
+              ),
+            );
+          } : null,
+        ),
+      );
+      
+      setState(() {
+        _batteryListeningActive = true;
+        _monitoringActive = true;
+        _batteryInfoMonitoringActive = true;
+      });
+      
+      _showMessage('已开启全面电池监控，配置结果: $result');
+    } catch (e) {
+      _showMessage('启动全面电池监控失败: $e');
+    }
+  }
+  
+  // 停止全面电池监控
+  Future<void> _stopCompleteBatteryMonitoring() async {
+    try {
+      // 使用高级API停止所有监控
+      await _flutterBatteryPlugin.configureBattery(
+        BatteryConfiguration(
+          monitorConfig: BatteryMonitorConfig(
+            monitorBatteryLevel: false,
+            monitorBatteryInfo: false,
+          ),
+          lowBatteryConfig: BatteryLevelMonitorConfig(
+            enable: false,
+          ),
+        ),
+      );
+      
+      setState(() {
+        _batteryListeningActive = false;
+        _monitoringActive = false;
+        _batteryInfoMonitoringActive = false;
+      });
+      
+      _showMessage('已停止全面电池监控');
+    } catch (e) {
+      _showMessage('停止全面电池监控失败: $e');
     }
   }
 
@@ -850,6 +998,153 @@ class _MyAppState extends State<MyApp> {
                     ),
                   ),
                 ),
+                // 电池电量历史记录
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              '电池电量历史记录',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.clear_all),
+                              tooltip: '清空历史记录',
+                              onPressed: _clearBatteryHistory,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        if (_batteryHistory.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(
+                              child: Text('暂无电量历史数据', style: TextStyle(color: Colors.grey)),
+                            ),
+                          )
+                        else
+                          SizedBox(
+                            height: 200,
+                            child: ListView.builder(
+                              itemCount: _batteryHistory.length,
+                              itemBuilder: (context, index) {
+                                final record = _batteryHistory[index];
+                                return ListTile(
+                                  dense: true,
+                                  leading: BatteryAnimation(
+                                    batteryLevel: record.level,
+                                    width: 30,
+                                    height: 15,
+                                  ),
+                                  title: Text(
+                                    '电量: ${record.level}%',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: _getBatteryColor(record.level),
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    '时间: ${_formatTime(record.timestamp)}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // 全面电池监控卡片
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '全面电池监控',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          '同时监控电池电量变化、完整信息和低电量警告',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        if (_batteryInfo != null)
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('电量: ${_batteryInfo!.level}%'),
+                                Text('充电状态: ${_batteryInfo!.isCharging ? "充电中" : "未充电"}'),
+                                Text('温度: ${_batteryInfo!.temperature.toStringAsFixed(1)}°C'),
+                                Text('电压: ${_batteryInfo!.voltage.toStringAsFixed(2)}V'),
+                                Text('状态: ${_batteryStateToString(_batteryInfo!.state)}'),
+                              ],
+                            ),
+                          ),
+                        
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _batteryInfoMonitoringActive
+                                    ? null
+                                    : _startCompleteBatteryMonitoring,
+                                icon: const Icon(Icons.play_arrow),
+                                label: const Text('启动全面监控'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green.shade100,
+                                  foregroundColor: Colors.green.shade800,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _batteryInfoMonitoringActive
+                                    ? _stopCompleteBatteryMonitoring
+                                    : null,
+                                icon: const Icon(Icons.stop),
+                                label: const Text('停止全面监控'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red.shade100,
+                                  foregroundColor: Colors.red.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -863,15 +1158,34 @@ class _MyAppState extends State<MyApp> {
     return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}:${dateTime.second.toString().padLeft(2, '0')}';
   }
   
-  // 根据电量获取颜色
-  Color _getBatteryColor(int level) {
-    if (level <= 20) {
-      return Colors.red;
-    } else if (level <= 50) {
-      return Colors.orange;
-    } else {
-      return Colors.green;
+  // 格式化时间显示
+  String _formatTime(DateTime time) {
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:${time.second.toString().padLeft(2, '0')}';
+  }
+  
+  // 将电池状态枚举转换为友好的文本显示
+  String _batteryStateToString(BatteryState state) {
+    switch (state) {
+      case BatteryState.NORMAL:
+        return '正常';
+      case BatteryState.LOW:
+        return '低电量';
+      case BatteryState.CRITICAL:
+        return '极低电量';
+      case BatteryState.CHARGING:
+        return '充电中';
+      case BatteryState.FULL:
+        return '已充满';
+      default:
+        return '未知';
     }
+  }
+  
+  // 获取电池电量对应的颜色
+  Color _getBatteryColor(int level) {
+    if (level >= 60) return Colors.green;
+    if (level >= 30) return Colors.orange;
+    return Colors.red;
   }
 }
 
@@ -1025,12 +1339,26 @@ class _BatteryStreamPageState extends State<BatteryStreamPage> {
         _streamSubscription?.cancel();
         _streamSubscription = null;
         _isSetupCollapsed = false; // 停止监听时展开设置
+        
+        // 使用新的配置API停止所有监听
+        _flutterBatteryPlugin.configureBatteryMonitor(
+          BatteryMonitorConfig(
+            monitorBatteryLevel: false,
+            monitorBatteryInfo: false,
+          ),
+        );
       } else {
-        // 设置推送间隔（毫秒）
+        // 使用新的配置API设置推送间隔
         int intervalMs = (_sliderValue * 1000).round();
-        _flutterBatteryPlugin.setPushInterval(
-          intervalMs: intervalMs,
-          enableDebounce: _enableDebounce,
+        
+        // 配置电池监听
+        _flutterBatteryPlugin.configureBatteryMonitor(
+          BatteryMonitorConfig(
+            monitorBatteryLevel: true,
+            monitorBatteryInfo: false,
+            intervalMs: intervalMs,
+            enableDebounce: _enableDebounce,
+          ),
         );
 
         // 订阅电池流

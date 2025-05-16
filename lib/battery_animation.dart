@@ -35,12 +35,12 @@ class _BatteryAnimationState extends State<BatteryAnimation>
   void initState() {
     super.initState();
     _previousBatteryLevel = widget.batteryLevel;
-    
+
     _animationController = AnimationController(
       vsync: this,
       duration: widget.animationDuration,
     );
-    
+
     _batteryLevelAnimation = Tween<double>(
       begin: _previousBatteryLevel.toDouble(),
       end: widget.batteryLevel.toDouble(),
@@ -48,7 +48,7 @@ class _BatteryAnimationState extends State<BatteryAnimation>
       parent: _animationController,
       curve: Curves.easeInOut,
     ));
-    
+
     _animationController.forward();
   }
 
@@ -64,7 +64,7 @@ class _BatteryAnimationState extends State<BatteryAnimation>
         parent: _animationController,
         curve: Curves.easeInOut,
       ));
-      
+
       _animationController.reset();
       _animationController.forward();
     }
@@ -93,21 +93,20 @@ class _BatteryAnimationState extends State<BatteryAnimation>
       builder: (context, child) {
         final currentLevel = _batteryLevelAnimation.value;
         final color = _getBatteryColor(currentLevel);
-        
+
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (widget.showPercentage)
-            Text(
-              '${currentLevel.toInt()}%',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
+              Text(
+                '${currentLevel.toInt()}%',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
-            ),
-            if (widget.showPercentage)
-            const SizedBox(height: 16),
+            if (widget.showPercentage) const SizedBox(height: 16),
             CustomPaint(
               size: Size(widget.width, widget.height),
               painter: BatteryPainter(
@@ -138,57 +137,57 @@ class BatteryPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final width = size.width;
     final height = size.height;
-    
+
     // 电池外壳
     final outlinePaint = Paint()
       ..color = Colors.grey[600]!
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.0;
-      
+
     // 电池顶部的小突起
     final topRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(width * 0.3, 0, width * 0.4, height * 0.05),
       const Radius.circular(3),
     );
-    
+
     // 电池主体
     final bodyRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(0, height * 0.05, width, height * 0.95),
       const Radius.circular(10),
     );
-    
+
     // 画电池外壳
     canvas.drawRRect(topRect, outlinePaint);
     canvas.drawRRect(bodyRect, outlinePaint);
-    
+
     // 画电池电量
     final fillPaint = Paint()
       ..color = batteryColor
       ..style = PaintingStyle.fill;
-      
+
     // 计算填充高度（从底部向上填充）
     final fillHeight = (height * 0.95) * batteryLevel;
     final fillMargin = 6.0; // 留出一些边距
-    
+
     final fillRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(
-        fillMargin, 
+        fillMargin,
         height - fillHeight - fillMargin,
-        width - (fillMargin * 2), 
+        width - (fillMargin * 2),
         fillHeight,
       ),
       const Radius.circular(6),
     );
-    
+
     canvas.drawRRect(fillRect, fillPaint);
-    
+
     // 如果在充电，绘制闪电图标
     if (isCharging) {
       final boltPath = Path();
       final centerX = width / 2;
       final topY = height * 0.3;
       final bottomY = height * 0.7;
-      
+
       // 绘制闪电形状
       boltPath.moveTo(centerX, topY);
       boltPath.lineTo(centerX - width * 0.2, height * 0.5);
@@ -197,20 +196,20 @@ class BatteryPainter extends CustomPainter {
       boltPath.lineTo(centerX + width * 0.2, height * 0.5);
       boltPath.lineTo(centerX, height * 0.5);
       boltPath.close();
-      
+
       final boltPaint = Paint()
         ..color = Colors.yellow
         ..style = PaintingStyle.fill;
-        
+
       canvas.drawPath(boltPath, boltPaint);
     }
   }
 
   @override
   bool shouldRepaint(covariant BatteryPainter oldDelegate) {
-    return oldDelegate.batteryLevel != batteryLevel || 
-           oldDelegate.batteryColor != batteryColor ||
-           oldDelegate.isCharging != isCharging;
+    return oldDelegate.batteryLevel != batteryLevel ||
+        oldDelegate.batteryColor != batteryColor ||
+        oldDelegate.isCharging != isCharging;
   }
 }
 
