@@ -1,15 +1,18 @@
 # Flutter Battery Plugin
 
-Flutter插件，用于监控设备电池电量并在电量低于特定阈值时发送通知，同时支持实时监听电池电量变化。
+Flutter插件，用于监控设备电池电量并在电量低于特定阈值时发送通知，同时支持实时监听电池电量变化和获取完整电池信息。
 
 ## 功能特性
 
-- 获取当前电池电量百分比
-- 实时监听电池电量变化
+- 获取当前电池电量百分比和完整电池信息（电量、温度、电压、充电状态等）
+- 实时监听电池电量和电池信息变化
 - 设置电池低电量阈值监控
 - 支持系统通知或Flutter自定义UI响应低电量
 - 支持定时或即时推送通知
 - 电池电量动画组件可视化展示
+- 电池性能优化建议
+- 防抖动机制，减少电量推送频率
+- 线程安全的资源管理和错误处理
 - 跨平台支持（Android）
 
 ## 项目结构
@@ -30,9 +33,11 @@ lib/
 android/src/main/kotlin/com/example/flutter_battery/
 ├── FlutterBatteryPlugin.kt          # 插件主类，负责初始化和生命周期管理
 ├── channel/                         # 通道相关
-│   └── MethodChannelHandler.kt      # 方法通道处理器
+│   ├── MethodChannelHandler.kt      # 方法通道处理器
+│   └── EventChannelHandler.kt       # 事件通道处理器
 └── core/                            # 核心功能
     ├── BatteryMonitor.kt            # 电池监控核心逻辑
+    ├── TimerManager.kt              # 定时器管理
     └── NotificationHelper.kt        # 通知助手
 
 android/src/main/kotlin/com/example/push_notification/
@@ -46,9 +51,9 @@ android/src/main/kotlin/com/example/push_notification/
 
 将此依赖项添加到您的`pubspec.yaml`文件中：
 
-```yaml
-dependencies:
-  flutter_battery:
+   ```yaml
+   dependencies:
+     flutter_battery:
     git:
       url: https://github.com/yourname/flutter_battery.git
       ref: main
@@ -58,8 +63,8 @@ dependencies:
 
 ### 导入
 
-```dart
-import 'package:flutter_battery/flutter_battery.dart';
+   ```dart
+   import 'package:flutter_battery/flutter_battery.dart';
 ```
 
 ### 初始化插件
@@ -73,6 +78,23 @@ final flutterBatteryPlugin = FlutterBattery();
 ```dart
 final int? batteryLevel = await flutterBatteryPlugin.getBatteryLevel();
 print('当前电池电量: $batteryLevel%');
+```
+
+### 获取完整电池信息
+
+```dart
+final batteryInfo = await flutterBatteryPlugin.getBatteryInfo();
+print('电池信息: $batteryInfo');
+// 输出: 电池信息: BatteryInfo(level: 85%, isCharging: true, temperature: 37.5°C, voltage: 4.35V, state: BatteryState.CHARGING)
+```
+
+### 获取电池优化建议
+
+```dart
+final tips = await flutterBatteryPlugin.getBatteryOptimizationTips();
+for (final tip in tips) {
+  print('电池优化建议: $tip');
+}
 ```
 
 ### 监听电池电量变化
@@ -91,6 +113,51 @@ await flutterBatteryPlugin.startBatteryLevelListening();
 await flutterBatteryPlugin.stopBatteryLevelListening();
 ```
 
+### 监听完整电池信息变化
+
+```dart
+// 设置电池信息变化监听
+flutterBatteryPlugin.setBatteryInfoChangeListener((BatteryInfo info) {
+  print('电池信息更新: $info');
+  // 可以根据不同状态执行不同操作
+  if (info.state == BatteryState.CRITICAL) {
+    // 电量极低，执行紧急操作
+  } else if (info.state == BatteryState.CHARGING) {
+    // 充电中，可以执行高耗电操作
+  }
+});
+
+// 开始监听
+await flutterBatteryPlugin.startBatteryInfoListening(intervalMs: 5000); // 每5秒更新一次
+
+// 停止监听
+await flutterBatteryPlugin.stopBatteryInfoListening();
+```
+
+### 使用流式API获取电池信息
+
+```dart
+// 获取原始电池数据流
+flutterBatteryPlugin.batteryStream.listen((Map<String, dynamic> event) {
+  print('电池事件: $event');
+});
+
+// 获取格式化的电池信息流
+flutterBatteryPlugin.batteryInfoStream.listen((BatteryInfo info) {
+  print('电池信息流: $info');
+});
+```
+
+### 设置推送频率和防抖动
+
+```dart
+// 每10秒推送一次电池信息，仅在电量变化时推送
+await flutterBatteryPlugin.setPushInterval(
+  intervalMs: 10000,
+  enableDebounce: true,
+   );
+```
+
 ### 设置电池电量监控
 
 使用系统通知：
@@ -102,7 +169,7 @@ await flutterBatteryPlugin.setBatteryLevelThreshold(
   message: '您的电池电量低于20%，请及时充电',
   intervalMinutes: 15,  // 每15分钟检查一次
   useFlutterRendering: false,  // 使用系统通知
-);
+   );
 ```
 
 使用Flutter自定义UI响应：
@@ -114,7 +181,7 @@ await flutterBatteryPlugin.setBatteryLevelThreshold(
   message: '您的电池电量低于20%，请及时充电',
   intervalMinutes: 15,
   useFlutterRendering: true,  // 使用Flutter UI
-  onLowBattery: (int batteryLevel) {
+     onLowBattery: (int batteryLevel) {
     // 在此处理低电量事件，例如显示自定义对话框
     showDialog(
       context: context,
@@ -125,15 +192,15 @@ await flutterBatteryPlugin.setBatteryLevelThreshold(
         },
       ),
     );
-  },
-);
+     },
+   );
 ```
 
 ### 停止电池监控
 
 ```dart
 await flutterBatteryPlugin.stopBatteryMonitoring();
-```
+   ```
 
 ### 发送通知
 
@@ -181,13 +248,51 @@ BatteryAnimation(
 |-------|------|-------|------|
 | `getPlatformVersion` | 无 | `Future<String?>` | 获取平台版本 |
 | `getBatteryLevel` | 无 | `Future<int?>` | 获取当前电池电量百分比 |
+| `getBatteryInfo` | 无 | `Future<BatteryInfo>` | 获取完整电池信息 |
+| `getBatteryOptimizationTips` | 无 | `Future<List<String>>` | 获取电池优化建议 |
+| `setPushInterval` | `intervalMs`, `enableDebounce` | `Future<bool?>` | 设置推送间隔和防抖动 |
 | `setBatteryLevelChangeListener` | `Function(int)` | `void` | 设置电池电量变化监听器 |
+| `setBatteryInfoChangeListener` | `Function(BatteryInfo)` | `void` | 设置电池信息变化监听器 |
 | `startBatteryLevelListening` | 无 | `Future<bool?>` | 开始监听电池电量变化 |
 | `stopBatteryLevelListening` | 无 | `Future<bool?>` | 停止监听电池电量变化 |
+| `startBatteryInfoListening` | `intervalMs` | `Future<bool?>` | 开始监听电池信息变化 |
+| `stopBatteryInfoListening` | 无 | `Future<bool?>` | 停止监听电池信息变化 |
 | `setBatteryLevelThreshold` | `threshold`, `title`, `message`, `intervalMinutes`, `useFlutterRendering`, `onLowBattery` | `Future<bool?>` | 设置电池电量低阈值监控 |
 | `stopBatteryMonitoring` | 无 | `Future<bool?>` | 停止电池电量监控 |
 | `showNotification` | `title`, `message` | `Future<bool?>` | 立即显示通知 |
 | `scheduleNotification` | `title`, `message`, `delayMinutes` | `Future<bool?>` | 调度延迟通知 |
+
+#### 属性
+
+| 属性名 | 类型 | 描述 |
+|-------|------|------|
+| `batteryStream` | `Stream<Map<String, dynamic>>` | 原始电池事件流 |
+| `batteryInfoStream` | `Stream<BatteryInfo>` | 格式化的电池信息流 |
+
+### BatteryInfo 类
+
+代表完整的电池信息。
+
+#### 属性
+
+| 属性名 | 类型 | 描述 |
+|-------|------|------|
+| `level` | `int` | 电池电量百分比 |
+| `isCharging` | `bool` | 是否正在充电 |
+| `temperature` | `double` | 电池温度(°C) |
+| `voltage` | `double` | 电池电压(V) |
+| `state` | `BatteryState` | 电池状态枚举 |
+| `timestamp` | `int` | 时间戳(毫秒) |
+
+### BatteryState 枚举
+
+表示电池的不同状态。
+
+- `NORMAL` - 正常状态
+- `LOW` - 低电量状态
+- `CRITICAL` - 极低电量状态
+- `CHARGING` - 充电状态
+- `FULL` - 已充满状态
 
 ### BatteryAnimation 组件
 
@@ -207,60 +312,86 @@ BatteryAnimation(
 
 ## 调用链
 
-```mermaid
-graph TD
-    A[Flutter应用] -->|API调用| B[flutter_battery.dart]
-    B -->|通过平台接口| C[flutter_battery_platform_interface.dart]
-    C -->|具体平台实现| D[flutter_battery_method_channel.dart]
-    D -->|使用MethodChannel| E[Android:FlutterBatteryPlugin.kt]
-    E -->|初始化| F[核心组件]
-    E -->|设置方法处理器| G[MethodChannelHandler.kt]
-    F -->|电池监控| H[BatteryMonitor.kt]
-    F -->|通知管理| I[NotificationHelper.kt]
-    H -->|低电量事件| J[PushNotificationManager.kt]
-    H -->|电量变化| G
-    I -->|发送通知| J
-    J -->|调度通知| K[NotificationAlarmReceiver.kt]
-    G -->|回调方法| D
-    D -->|回调方法| C
-    C -->|回调方法| B
-    B -->|回调方法| A
+下面是主要功能的调用链描述：
+
+### 获取电池电量
+```
+[Flutter App] -> getBatteryLevel() -> [flutter_battery.dart] 
+  -> FlutterBatteryPlatform.instance.getBatteryLevel() -> [method_channel.dart] 
+    -> methodChannel.invokeMethod('getBatteryLevel') -> [Android Native] 
+      -> MethodChannelHandler.onMethodCall() 
+        -> BatteryMonitor.getBatteryLevel() 
+          -> Android BatteryManager.getIntProperty()
 ```
 
-## 事件流程
-
-```mermaid
-sequenceDiagram
-    participant App as Flutter App
-    participant Plugin as Flutter Battery Plugin
-    participant Android as Android Native
-    participant System as System Events
-
-    App->>Plugin: startBatteryLevelListening()
-    Plugin->>Android: 注册电池变化监听
-    Android->>System: 注册广播接收器
-    
-    loop 电池电量变化
-        System->>Android: ACTION_BATTERY_CHANGED
-        Android->>Plugin: onBatteryLevelChanged(level)
-        Plugin->>App: 回调 batteryLevel
-    end
-    
-    App->>Plugin: stopBatteryLevelListening()
-    Plugin->>Android: 取消电池变化监听
-    Android->>System: 注销广播接收器
+### 获取完整电池信息
+```
+[Flutter App] -> getBatteryInfo() -> [flutter_battery.dart]
+  -> FlutterBatteryPlatform.instance.getBatteryInfo() -> [method_channel.dart]
+    -> methodChannel.invokeMapMethod('getBatteryInfo') -> [Android Native]
+      -> MethodChannelHandler.onMethodCall()
+        -> BatteryMonitor.getBatteryInfo()
+          -> 收集电池电量、温度、电压、充电状态等
+            -> 返回Map<String, Any>
 ```
 
-## Android权限
-
-本插件需要以下Android权限：
-
-```xml
-<!-- 电池优化 -->
-<uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-<!-- 通知权限（Android 13+） -->
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+### 电池电量监听
 ```
+[Flutter App] -> startBatteryLevelListening() -> [flutter_battery.dart]
+  -> FlutterBatteryPlatform.instance.startBatteryLevelListening() -> [method_channel.dart]
+    -> methodChannel.invokeMethod('startBatteryLevelListening') -> [Android Native]
+      -> MethodChannelHandler.onMethodCall()
+        -> BatteryMonitor.startBatteryLevelListening()
+          -> registerReceiver(BatteryReceiver) -> ACTION_BATTERY_CHANGED
+            -> TimerManager.start() -> 定时推送电池电量
+              -> BatteryMonitor.pushBatteryLevel() 
+                -> onBatteryLevelChangeCallback()
+                  -> MethodChannel.invokeMethod('onBatteryLevelChanged')
+                    -> [Flutter] method_channel._handleMethodCall()
+                      -> _batteryLevelChangeCallback() 
+                        -> [Flutter App] UI更新
+```
+
+### 电池信息流
+```
+[Flutter App] -> batteryInfoStream -> [flutter_battery.dart]
+  -> FlutterBatteryPlatform.instance.batteryStream -> [method_channel.dart]
+    -> eventChannel.receiveBroadcastStream() -> [Android Native]
+      -> EventChannelHandler.onListen()
+        -> TimerManager.start() 
+          -> EventChannelHandler.pushBatteryInfo() 或 pushCompleteBatteryInfo()
+            -> eventSink.success(batteryInfo)
+              -> [Flutter] batteryStream.map() 
+                -> BatteryInfo.fromMap() 
+                  -> [Flutter App] 接收格式化电池信息
+```
+
+### 低电量监控
+```
+[Flutter App] -> setBatteryLevelThreshold() -> [flutter_battery.dart]
+  -> FlutterBatteryPlatform.instance.setBatteryLevelThreshold() -> [method_channel.dart]
+    -> methodChannel.invokeMethod('setBatteryLevelThreshold') -> [Android Native]
+      -> MethodChannelHandler.onMethodCall()
+        -> BatteryMonitor.startMonitoring()
+          -> registerBatteryReceiver() -> ACTION_BATTERY_CHANGED
+            -> TimerManager.start() -> batteryCheckTimer
+              -> BatteryMonitor.checkLowBattery()
+                -> 当电量低于阈值
+                  -> useFlutterRendering ? 
+                    onLowBatteryCallback() -> MethodChannel.invokeMethod('onLowBattery')
+                    : PushNotificationManager.showNotification()
+```
+
+## 资源管理与错误处理
+
+该插件实现了完整的资源管理和错误处理机制：
+
+1. 所有通道和监听器在不需要时会被正确释放
+2. 使用`synchronized`和`AtomicBoolean`确保线程安全
+3. 所有核心方法都有`try-catch`进行异常处理
+4. 定时器和广播接收器在适当的生命周期被清理
+5. 实现了防抖动机制，避免频繁更新造成资源浪费
+6. 向Flutter端提供详细的错误信息
 
 ## 常见问题
 

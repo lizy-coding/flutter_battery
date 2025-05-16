@@ -98,16 +98,16 @@ class _BatteryAnimationState extends State<BatteryAnimation>
           mainAxisSize: MainAxisSize.min,
           children: [
             if (widget.showPercentage)
-              Text(
-                '${currentLevel.toInt()}%',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
+            Text(
+              '${currentLevel.toInt()}%',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: color,
               ),
+            ),
             if (widget.showPercentage)
-              const SizedBox(height: 16),
+            const SizedBox(height: 16),
             CustomPaint(
               size: Size(widget.width, widget.height),
               painter: BatteryPainter(
