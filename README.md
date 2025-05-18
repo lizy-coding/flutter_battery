@@ -2,9 +2,55 @@
 
 Flutter插件，用于监控设备电池电量并在电量低于特定阈值时发送通知，同时支持实时监听电池电量变化和获取完整电池信息。
 
+
+![example](https://github.com/lizy-coding/flutter_battery/blob/master/example/az_recorder_20250518_091407.gif)
+
+
 ## 版本信息
 
 当前版本: **0.0.3**
+
+## 项目结构
+
+### Flutter 层 (`lib` 目录)
+
+```
+lib/
+├── battery_animation.dart        # 电池动画组件实现
+├── flutter_battery.dart          # 插件主类，提供所有公共API
+├── flutter_battery_method_channel.dart  # 方法通道实现，处理与原生平台通信
+└── flutter_battery_platform_interface.dart  # 平台接口定义，确保跨平台一致性
+```
+
+### Android 层 (`android/src/main/kotlin` 目录)
+
+```
+android/src/main/kotlin/
+└── com/
+    └── example/
+        ├── flutter_battery/
+        │   ├── FlutterBatteryPlugin.kt      # 插件主类，注册方法通道
+        │   ├── channel/
+        │   │   ├── EventChannelHandler.kt   # 事件通道处理，用于流式数据
+        │   │   └── MethodChannelHandler.kt  # 方法通道处理，用于请求/响应
+        │   └── core/
+        │       ├── BatteryMonitor.kt        # 电池监控核心实现
+        │       ├── NotificationHelper.kt    # 通知管理助手
+        │       └── TimerManager.kt          # 定时器管理
+        └── push_notification/               # 推送通知模块
+            ├── MainActivity.kt
+            ├── PushNotificationInitializer.kt
+            ├── PushNotificationManager.kt
+            ├── api/                         # API相关
+            ├── data/                        # 数据层
+            ├── di/                          # 依赖注入
+            ├── domain/                      # 领域层
+            ├── presentation/                # 表现层
+            ├── push_notification/           # 推送通知核心
+            ├── receiver/                    # 广播接收器
+            ├── service/                     # 服务
+            └── util/                        # 工具类
+```
 
 ## 功能特性
 
