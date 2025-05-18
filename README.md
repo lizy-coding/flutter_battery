@@ -10,6 +10,164 @@ Flutter插件，用于监控设备电池电量并在电量低于特定阈值时�
 
 当前版本: **0.0.3**
 
+## 电池电量检测逻辑对比：主动查询 vs 推送模式
+
+本插件提供了两种检测电池电量的方式：主动查询和推送模式。下面分别通过流程图展示这两种方法的工作原理及其关键 API 调用链，凸显 EventChannel 与 MethodChannel 的差异。
+
+### 主动查询模式 (MethodChannel)
+
+主动查询模式通过 MethodChannel 实现，由 Flutter 应用主动发起请求获取电池信息。
+
+```mermaid
+graph TB
+    %% 样式定义
+    classDef flutter fill:#61DAFB,stroke:#333,stroke-width:1px,color:#333
+    classDef android fill:#3DDC84,stroke:#333,stroke-width:1px,color:#333
+    classDef methodChannel fill:#FFA726,stroke:#333,stroke-width:1px,color:#333
+    classDef core fill:#E57373,stroke:#333,stroke-width:1px,color:#333
+    
+    %% Flutter 应用层
+    FlutterApp["Flutter 应用层"]:::flutter
+    
+    %% 主动查询模式
+    FlutterApp -->|"1. getBatteryLevel()"| FlutterBattery["FlutterBattery 类"]:::flutter
+    FlutterBattery -->|"2. getBatteryLevel()"| PlatformInterface["FlutterBatteryPlatform"]:::flutter
+    PlatformInterface -->|"3. invokeMethod('getBatteryLevel')"| MethodChannel["MethodChannel"]:::methodChannel
+    MethodChannel -->|"4. 通过 JNI 调用"| MethodHandler["MethodChannelHandler"]:::android
+    MethodHandler -->|"5. getBatteryLevel()"| BatteryMonitor["BatteryMonitor"]:::core
+    BatteryMonitor -->|"6. getIntProperty(BATTERY_PROPERTY_CAPACITY)"| AndroidBatteryManager["Android BatteryManager"]:::android
+    AndroidBatteryManager -->|"7. 返回电池电量"| BatteryMonitor
+    BatteryMonitor -->|"8. 返回电池电量"| MethodHandler
+    MethodHandler -->|"9. 返回结果"| MethodChannel
+    MethodChannel -->|"10. 返回结果"| PlatformInterface
+    PlatformInterface -->|"11. 返回结果"| FlutterBattery
+    FlutterBattery -->|"12. 返回结果"| FlutterApp
+```
+
+**MethodChannel 特点**:
+- 单次请求-响应模式
+- 适合主动查询场景
+- 同步/异步调用
+- 支持复杂参数和返回值
+
+### 推送模式 (EventChannel)
+
+推送模式主要通过 EventChannel 实现，由原生平台主动向 Flutter 推送电池状态变化。下面分别展示两种推送方式。
+
+#### 1. EventChannel 推送方式
+
+```mermaid
+graph TB
+    %% 样式定义
+    classDef flutter fill:#61DAFB,stroke:#333,stroke-width:1px,color:#333
+    classDef android fill:#3DDC84,stroke:#333,stroke-width:1px,color:#333
+    classDef eventChannel fill:#66BB6A,stroke:#333,stroke-width:1px,color:#333
+    classDef core fill:#E57373,stroke:#333,stroke-width:1px,color:#333
+    
+    %% Flutter 应用层
+    FlutterApp["Flutter 应用层"]:::flutter
+    FlutterBatteryStream["FlutterBattery.batteryInfoStream"]:::flutter
+    EventChannel["EventChannel"]:::eventChannel
+    EventHandler["EventChannelHandler"]:::android
+    TimerManager1["TimerManager"]:::core
+    BatteryMonitor["BatteryMonitor"]:::core
+    AndroidBatteryManager["Android BatteryManager"]:::android
+    
+    %% 调用链
+    FlutterApp -->|"1. batteryInfoStream.listen()"| FlutterBatteryStream
+    FlutterBatteryStream -->|"2. eventChannel.receiveBroadcastStream()"| EventChannel
+    EventChannel -->|"3. onListen()"| EventHandler
+    EventHandler -->|"4. 启动定时器 timerManager.start()"| TimerManager1
+    TimerManager1 -->|"5. 定时执行 pushBatteryInfo()"| EventHandler
+    EventHandler -->|"6. getBatteryLevel()"| BatteryMonitor
+    BatteryMonitor -->|"7. 获取电池信息"| AndroidBatteryManager
+    AndroidBatteryManager -->|"8. 返回电池信息"| BatteryMonitor
+    BatteryMonitor -->|"9. 返回电池信息"| EventHandler
+    EventHandler -->|"10. eventSink.success(batteryInfo)"| EventChannel
+    EventChannel -->|"11. 推送数据到 Stream"| FlutterBatteryStream
+    FlutterBatteryStream -->|"12. 触发 listener 回调"| FlutterApp
+```
+
+#### 2. 广播接收器推送方式
+
+```mermaid
+graph TB
+    %% 样式定义
+    classDef flutter fill:#61DAFB,stroke:#333,stroke-width:1px,color:#333
+    classDef android fill:#3DDC84,stroke:#333,stroke-width:1px,color:#333
+    classDef methodChannel fill:#FFA726,stroke:#333,stroke-width:1px,color:#333
+    classDef core fill:#E57373,stroke:#333,stroke-width:1px,color:#333
+    
+    %% 定义节点
+    FlutterApp["Flutter 应用层"]:::flutter
+    AndroidBroadcast["Android 电池广播"]:::android
+    BatteryReceiver["电池广播接收器"]:::android
+    BatteryMonitor["BatteryMonitor"]:::core
+    TimerManager2["TimerManager"]:::core
+    MethodHandler["MethodChannelHandler"]:::android
+    MethodChannel["MethodChannel"]:::methodChannel
+    FlutterMethodChannel["MethodChannelFlutterBattery"]:::flutter
+    FlutterBattery["FlutterBattery"]:::flutter
+    
+    %% 调用链
+    AndroidBroadcast -->|"1. ACTION_BATTERY_CHANGED"| BatteryReceiver
+    BatteryReceiver -->|"2. onReceive()"| BatteryMonitor
+    BatteryMonitor -->|"3. 更新 lastBatteryLevel"| BatteryMonitor
+    BatteryMonitor -->|"4. 启动定时器 batteryLevelPushTimer"| TimerManager2
+    TimerManager2 -->|"5. 定时执行 pushBatteryLevel()"| BatteryMonitor
+    BatteryMonitor -->|"6. 调用回调 onBatteryLevelChangeCallback"| MethodHandler
+    MethodHandler -->|"7. invokeMethod('onBatteryLevelChanged')"| MethodChannel
+    MethodChannel -->|"8. _handleMethodCall()"| FlutterMethodChannel
+    FlutterMethodChannel -->|"9. _batteryLevelChangeCallback()"| FlutterBattery
+    FlutterBattery -->|"10. 触发回调"| FlutterApp
+```
+
+**EventChannel 特点**:
+- 持续数据流模式
+- 适合推送和监听场景
+- 异步事件流
+- 支持长连接场景
+- 减少频繁查询开销
+
+## 主动查询 vs 推送模式对比
+
+| 特性 | 主动查询 (MethodChannel) | 推送模式 (EventChannel) |
+|------|------------------------|------------------------|
+| 调用方式 | 客户端主动发起请求 | 服务端主动推送数据 |
+| 适用场景 | 按需获取电池信息 | 实时监控电池变化 |
+| 资源消耗 | 每次查询都有开销 | 建立连接后开销较小 |
+| 实时性 | 取决于查询频率 | 可配置推送间隔，更实时 |
+| 实现复杂度 | 较简单 | 较复杂，需处理事件流 |
+| 电量影响 | 频繁查询可能增加耗电 | 合理配置可减少耗电 |
+
+## 关键API调用链
+
+### 主动查询模式
+
+1. Flutter层调用 `FlutterBattery.getBatteryLevel()`
+2. 通过Platform Interface转发到MethodChannel
+3. MethodChannel通过JNI调用Android原生方法
+4. MethodChannelHandler接收并处理请求
+5. 调用BatteryMonitor.getBatteryLevel()
+6. 使用Android BatteryManager获取电池电量
+7. 结果原路返回到Flutter层
+
+### 推送模式
+
+#### EventChannel方式
+1. Flutter层订阅 `FlutterBattery.batteryInfoStream`
+2. EventChannel设置监听器
+3. EventChannelHandler.onListen()被触发
+4. 启动TimerManager定时器
+5. 定时器周期性调用pushBatteryInfo()
+6. 获取电池信息并通过eventSink推送到Flutter
+7. Flutter层的Stream监听器接收数据
+
+#### 广播接收器方式
+1. 注册接收ACTION_BATTERY_CHANGED广播
+2. 电池状态变化时触发onReceive()
+3. 更新电池状态并通过MethodChannel回调通知Flutter
+
 ## 项目结构
 
 ### Flutter 层 (`lib` 目录)
