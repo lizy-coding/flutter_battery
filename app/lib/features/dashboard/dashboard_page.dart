@@ -1,96 +1,125 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_battery/flutter_battery.dart';
 
-import '../../core/models/native_event.dart';
+import '../../core/native_bridge.dart';
+import '../../shared/widgets/gauge.dart';
+import '../../shared/widgets/line_chart.dart';
 
 class DashboardPage extends StatelessWidget {
-  const DashboardPage({
-    super.key,
-    required this.events,
-    required this.batteryLevel,
-  });
+  const DashboardPage({super.key, required this.bridge});
 
-  final List<NativeEvent> events;
-  final int? batteryLevel;
+  final NativeBridge bridge;
+  static final FlutterBattery _battery = FlutterBattery();
 
   @override
   Widget build(BuildContext context) {
-    final telemetryCount = events.where((e) => e.type == NativeEventType.telemetry).length;
-    final connectionCount = events.where((e) => e.type == NativeEventType.connection).length;
-    final lastTelemetry = events.lastWhere(
-      (e) => e.type == NativeEventType.telemetry,
-      orElse: () => const NativeEvent(type: NativeEventType.unknown, timestamp: DateTime.fromMillisecondsSinceEpoch(0)),
-    );
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              _StatCard(title: '当前电量', value: batteryLevel != null ? '$batteryLevel%' : '--'),
-              _StatCard(title: 'Telemetry 事件', value: telemetryCount.toString()),
-              _StatCard(title: '连接事件', value: connectionCount.toString()),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('最新 Telemetry', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    if (lastTelemetry.type == NativeEventType.unknown)
-                      const Text('暂无 Telemetry 数据')
-                    else
-                      Expanded(
-                        child: ListView(
-                          children: lastTelemetry.data.entries
-                              .map((entry) => ListTile(
-                                    dense: true,
-                                    title: Text(entry.key),
-                                    trailing: Text(entry.value.toString()),
-                                  ))
-                              .toList(),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.of(context).pushNamed('/settings'),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({required this.title, required this.value});
-
-  final String title;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 200,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.labelMedium),
-              const SizedBox(height: 8),
-              Text(value, style: Theme.of(context).textTheme.headlineSmall),
-            ],
-          ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const GaugePlaceholder(),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: StreamBuilder<BatteryInfo>(
+                  stream: _battery.batteryInfoStream,
+                  builder: (context, snapshot) {
+                    final info = snapshot.data;
+                    final level = info?.level ?? 0;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Battery', style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 12),
+                        Center(
+                          child: BatteryAnimation(
+                            batteryLevel: level.clamp(0, 100),
+                            width: 120,
+                            height: 200,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Telemetry', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: StreamBuilder<Map<String, dynamic>>(
+                          stream: bridge.telemetryStream,
+                          builder: (context, snapshot) {
+                            final telemetry = snapshot.data;
+                            if (telemetry == null || telemetry.isEmpty) {
+                              return const Center(child: Text('Waiting for telemetry...'));
+                            }
+                            return ListView(
+                              children: telemetry.entries
+                                  .map(
+                                    (entry) => ListTile(
+                                      dense: true,
+                                      title: Text(entry.key),
+                                      trailing: Text(entry.value.toString()),
+                                    ),
+                                  )
+                                  .toList(),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(),
+                      const SizedBox(height: 12),
+                      const Expanded(
+                        child: LineChartPlaceholder(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: bridge.startSync,
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Start Sync'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: bridge.stopSync,
+                    icon: const Icon(Icons.stop_circle_outlined),
+                    label: const Text('Stop Sync'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
