@@ -1,0 +1,25 @@
+channels:
+  method:
+    name: iot/native
+    methods:
+      - id: scanDevices
+        args:
+          filters: map
+      - id: connect
+        args:
+          deviceId: string
+      - id: startTelemetry
+        args:
+          deviceId: string
+          metrics: list
+      - id: stopTelemetry
+      - id: requestBatterySnapshot
+        args:
+          deviceId: string?
+  event:
+    name: iot/stream
+    payload:
+      type: enum(telemetry|battery|connection|discovered)
+      deviceId: string?
+      timestamp: int
+      data: map
