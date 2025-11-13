@@ -58,10 +58,7 @@ class FlutterBatteryPlugin : FlutterPlugin, ActivityAware, PluginRegistry.Reques
         // 4. 设置方法调用处理器
         methodChannel.setMethodCallHandler(methodChannelHandler)
         
-        // 5. 设置权限结果处理器
-        notificationHelper.setPermissionResultListener { requestCode, permissions, grantResults ->
-            onRequestPermissionsResult(requestCode, permissions, grantResults)
-        }
+        // 权限结果由 ActivityAware 接口转发至 NotificationHelper 处理
     }
 
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {

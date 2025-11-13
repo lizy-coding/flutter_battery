@@ -59,30 +59,10 @@ android {
     }
 
     dependencies {
-
-        // AndroidX 核心依赖
+        // AndroidX 核心（NotificationCompat 依赖）
         implementation 'androidx.core:core-ktx:1.16.0'
-        implementation 'androidx.appcompat:appcompat:1.7.0'
 
-        // 其他 AndroidX 依赖
-        implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
-        implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.9.0'
-        implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.0'
-
-
-        // Firebase消息传递依赖
-        implementation 'com.google.firebase:firebase-messaging:24.1.1'
-        
-        // Jetpack组件依赖
-        implementation 'androidx.core:core-ktx:1.16.0'
-        implementation 'androidx.appcompat:appcompat:1.7.0'
-        
-        // 添加Koin依赖
-        implementation 'io.insert-koin:koin-android:3.5.3'
-        implementation 'io.insert-koin:koin-core:3.5.3'
-        
-
-        
+        // 测试依赖
         testImplementation("org.jetbrains.kotlin:kotlin-test")
         testImplementation("org.mockito:mockito-core:5.2.0")
     }

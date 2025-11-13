@@ -1,5 +1,5 @@
-name: app_shell
-description: Flutter IoT hybrid shell with devices, dashboard, and settings pages.
+name: flutter_battery_example
+description: Example app for flutter_battery plugin
 publish_to: 'none'
 version: 0.1.0+1
 
@@ -10,7 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_battery:
-    path: ../flutter_battery
+    path: ../
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

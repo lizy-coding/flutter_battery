@@ -187,7 +187,7 @@ android/src/main/kotlin/
 └── com/
     └── example/
         ├── flutter_battery/
-        │   ├── FlutterBatteryPlugin.kt      # 插件主类，注册方法通道
+        │   ├── FlutterBatteryPlugin.kt      # 插件主类，注册方法/事件通道
         │   ├── channel/
         │   │   ├── EventChannelHandler.kt   # 事件通道处理，用于流式数据
         │   │   └── MethodChannelHandler.kt  # 方法通道处理，用于请求/响应
@@ -195,19 +195,22 @@ android/src/main/kotlin/
         │       ├── BatteryMonitor.kt        # 电池监控核心实现
         │       ├── NotificationHelper.kt    # 通知管理助手
         │       └── TimerManager.kt          # 定时器管理
-        └── push_notification/               # 推送通知模块
-            ├── MainActivity.kt
-            ├── PushNotificationInitializer.kt
-            ├── PushNotificationManager.kt
-            ├── api/                         # API相关
-            ├── data/                        # 数据层
-            ├── di/                          # 依赖注入
-            ├── domain/                      # 领域层
-            ├── presentation/                # 表现层
-            ├── push_notification/           # 推送通知核心
-            ├── receiver/                    # 广播接收器
-            ├── service/                     # 服务
-            └── util/                        # 工具类
+        └── push_notification/
+            ├── PushNotificationManager.kt   # 推送通知管理（即时/延迟）
+            ├── receiver/
+            │   └── NotificationAlarmReceiver.kt  # 延迟通知接收器
+            └── util/
+                └── Constants.kt             # 常量定义
+```
+
+### 示例应用（`example` 目录）
+
+```
+example/
+├── lib/
+│   └── main.dart                    # 示例入口，演示查询与流监听
+├── pubspec.yaml                     # 依赖本插件（path: ../）
+└── analysis_options.yaml            # 示例分析规则
 ```
 
 ## 功能特性
