@@ -6,6 +6,7 @@ import com.example.flutter_battery.channel.EventChannelHandler
 import com.example.flutter_battery.channel.MethodChannelHandler
 import com.example.flutter_battery.core.BatteryMonitor
 import com.example.flutter_battery.core.NotificationHelper
+import com.example.iot.nativekit.IotNativeInitializer
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -57,6 +58,9 @@ class FlutterBatteryPlugin : FlutterPlugin, ActivityAware, PluginRegistry.Reques
         
         // 4. 设置方法调用处理器
         methodChannel.setMethodCallHandler(methodChannelHandler)
+
+        // 5. 挂载 IoT 原生通道
+        IotNativeInitializer.attach(applicationContext, flutterPluginBinding.binaryMessenger)
         
         // 权限结果由 ActivityAware 接口转发至 NotificationHelper 处理
     }
@@ -68,6 +72,7 @@ class FlutterBatteryPlugin : FlutterPlugin, ActivityAware, PluginRegistry.Reques
         notificationHelper.dispose()
         methodChannelHandler.dispose()
         eventChannelHandler.dispose()
+        IotNativeInitializer.detach()
     }
     
     // ActivityAware接口实现
