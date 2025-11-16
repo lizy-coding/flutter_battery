@@ -18,6 +18,16 @@ enum class BatteryState {
     FULL       // 已充满状态
 }
 
+enum class BatteryHealthStatus {
+    GOOD,
+    OVERHEAT,
+    DEAD,
+    OVER_VOLTAGE,
+    FAILURE,
+    COLD,
+    UNKNOWN
+}
+
 /**
  * 电池监控管理器
  * 负责监控设备电池电量并在电量低于阈值时触发回调或通知
@@ -38,6 +48,9 @@ class BatteryMonitor(private val context: Context) {
     
     // 电池信息变化回调
     private var onBatteryInfoChangeCallback: ((Map<String, Any>) -> Unit)? = null
+
+    // 电池健康变化回调
+    private var onBatteryHealthChangeCallback: ((Map<String, Any>) -> Unit)? = null
     
     // 电量变化监听专用接收器
     private var batteryLevelChangeReceiver: BroadcastReceiver? = null
@@ -57,6 +70,11 @@ class BatteryMonitor(private val context: Context) {
     private val batteryLevelPushTimer = TimerManager() // 电池电量推送定时器
     private val batteryCheckTimer = TimerManager() // 低电量检查定时器
     private val batteryInfoPushTimer = TimerManager() // 电池信息推送定时器
+    private val batteryHealthTimer = TimerManager() // 电池健康推送定时器
+
+    companion object {
+        private const val DEFAULT_HEALTH_INTERVAL_MS = 10_000L
+    }
     
     init {
         // 配置电池电量推送定时器任务
@@ -72,6 +90,11 @@ class BatteryMonitor(private val context: Context) {
         // 配置电池信息推送定时器任务
         batteryInfoPushTimer.setTask {
             pushBatteryInfo()
+        }
+
+        // 配置电池健康推送定时器任务
+        batteryHealthTimer.setTask {
+            pushBatteryHealth()
         }
     }
     
@@ -102,6 +125,15 @@ class BatteryMonitor(private val context: Context) {
             onBatteryInfoChangeCallback?.invoke(batteryInfo)
         } catch (e: Exception) {
             android.util.Log.e("BatteryMonitor", "Error pushing battery info: ${e.message}")
+        }
+    }
+
+    private fun pushBatteryHealth() {
+        try {
+            val health = getBatteryHealth()
+            onBatteryHealthChangeCallback?.invoke(health)
+        } catch (e: Exception) {
+            android.util.Log.e("BatteryMonitor", "Error pushing battery health: ${e.message}")
         }
     }
     
@@ -196,6 +228,46 @@ class BatteryMonitor(private val context: Context) {
             "timestamp" to System.currentTimeMillis()
         )
     }
+
+    fun getBatteryHealth(): Map<String, Any> {
+        val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val healthCode = intent?.getIntExtra(BatteryManager.EXTRA_HEALTH, BatteryManager.BATTERY_HEALTH_UNKNOWN)
+            ?: BatteryManager.BATTERY_HEALTH_UNKNOWN
+        val level = intent?.let {
+            val rawLevel = it.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = it.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+            if (rawLevel >= 0 && scale > 0) {
+                (rawLevel * 100) / scale
+            } else {
+                getBatteryLevel()
+            }
+        } ?: getBatteryLevel()
+        val temperature = getBatteryTemperature()
+        val voltage = getBatteryVoltage()
+        val charging = isCharging()
+        val status = mapBatteryHealthStatus(healthCode)
+        val recommendations = buildHealthRecommendations(status, temperature, voltage, charging, level)
+        val risk = when (status) {
+            BatteryHealthStatus.GOOD -> "LOW"
+            BatteryHealthStatus.COLD,
+            BatteryHealthStatus.UNKNOWN -> "MEDIUM"
+            else -> "HIGH"
+        }
+
+        return mapOf(
+            "state" to status.name,
+            "statusLabel" to getHealthStatusLabel(status),
+            "code" to healthCode,
+            "isGood" to (status == BatteryHealthStatus.GOOD),
+            "isCharging" to charging,
+            "temperature" to temperature,
+            "voltage" to voltage,
+            "level" to level,
+            "riskLevel" to risk,
+            "recommendations" to recommendations,
+            "timestamp" to System.currentTimeMillis()
+        )
+    }
     
     /**
      * 获取电池优化建议
@@ -243,6 +315,10 @@ class BatteryMonitor(private val context: Context) {
     fun setBatteryInfoPushInterval(intervalMs: Long) {
         batteryInfoPushTimer.setInterval(intervalMs)
     }
+
+    fun setBatteryHealthPushInterval(intervalMs: Long) {
+        batteryHealthTimer.setInterval(intervalMs)
+    }
     
     /**
      * 设置低电量回调
@@ -263,6 +339,13 @@ class BatteryMonitor(private val context: Context) {
      */
     fun setOnBatteryInfoChangeCallback(callback: (Map<String, Any>) -> Unit) {
         onBatteryInfoChangeCallback = callback
+    }
+
+    /**
+     * 设置电池健康变化回调
+     */
+    fun setOnBatteryHealthChangeCallback(callback: (Map<String, Any>) -> Unit) {
+        onBatteryHealthChangeCallback = callback
     }
     
     /**
@@ -326,6 +409,15 @@ class BatteryMonitor(private val context: Context) {
     fun stopBatteryInfoListening() {
         // 停止推送定时器
         batteryInfoPushTimer.stop()
+    }
+
+    fun startBatteryHealthListening(intervalMs: Long = DEFAULT_HEALTH_INTERVAL_MS) {
+        batteryHealthTimer.setInterval(intervalMs)
+        batteryHealthTimer.start()
+    }
+
+    fun stopBatteryHealthListening() {
+        batteryHealthTimer.stop()
     }
     
     /**
@@ -402,13 +494,77 @@ class BatteryMonitor(private val context: Context) {
             onLowBatteryCallback = null
             onBatteryLevelChangeCallback = null
             onBatteryInfoChangeCallback = null
+            onBatteryHealthChangeCallback = null
             
             batteryLevelPushTimer.dispose()
             batteryCheckTimer.dispose()
             batteryInfoPushTimer.dispose()
+            batteryHealthTimer.dispose()
         }
     }
     
+    private fun mapBatteryHealthStatus(code: Int): BatteryHealthStatus {
+        return when (code) {
+            BatteryManager.BATTERY_HEALTH_GOOD -> BatteryHealthStatus.GOOD
+            BatteryManager.BATTERY_HEALTH_OVERHEAT -> BatteryHealthStatus.OVERHEAT
+            BatteryManager.BATTERY_HEALTH_DEAD -> BatteryHealthStatus.DEAD
+            BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE -> BatteryHealthStatus.OVER_VOLTAGE
+            BatteryManager.BATTERY_HEALTH_UNSPECIFIED_FAILURE -> BatteryHealthStatus.FAILURE
+            BatteryManager.BATTERY_HEALTH_COLD -> BatteryHealthStatus.COLD
+            else -> BatteryHealthStatus.UNKNOWN
+        }
+    }
+
+    private fun getHealthStatusLabel(status: BatteryHealthStatus): String {
+        return when (status) {
+            BatteryHealthStatus.GOOD -> "电池状态良好"
+            BatteryHealthStatus.OVERHEAT -> "电池过热"
+            BatteryHealthStatus.DEAD -> "电池损坏或老化严重"
+            BatteryHealthStatus.OVER_VOLTAGE -> "电压异常偏高"
+            BatteryHealthStatus.FAILURE -> "电池出现异常"
+            BatteryHealthStatus.COLD -> "电池温度过低"
+            BatteryHealthStatus.UNKNOWN -> "电池状态未知"
+        }
+    }
+
+    private fun buildHealthRecommendations(
+        status: BatteryHealthStatus,
+        temperature: Float,
+        voltage: Float,
+        charging: Boolean,
+        level: Int
+    ): List<String> {
+        val tips = mutableListOf<String>()
+        when (status) {
+            BatteryHealthStatus.OVERHEAT -> {
+                tips.add("电池温度过高(${temperature}°C)，请停止充电或高负载使用")
+                tips.add("避免阳光直射并移除厚重保护壳")
+            }
+            BatteryHealthStatus.COLD -> {
+                tips.add("电池温度偏低(${temperature}°C)，请恢复至室温后再使用")
+            }
+            BatteryHealthStatus.OVER_VOLTAGE -> {
+                tips.add("检测到电压异常(${voltage}V)，请使用原装充电器")
+            }
+            BatteryHealthStatus.DEAD,
+            BatteryHealthStatus.FAILURE -> {
+                tips.add("建议联系售后检查或更换电池")
+            }
+            BatteryHealthStatus.UNKNOWN -> {
+                tips.add("无法识别电池状态，建议重启设备或检查硬件")
+            }
+            else -> {
+                if (!charging && level < 30) {
+                    tips.add("电量偏低(${level}%)，建议及时充电")
+                }
+            }
+        }
+        if (tips.isEmpty()) {
+            tips.add("电池状态良好，可正常使用")
+        }
+        return tips
+    }
+
     // 注册电池状态变化监听
     private fun registerBatteryReceiver() {
         if (batteryReceiver == null) {

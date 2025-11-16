@@ -9,6 +9,7 @@ import com.example.iot.nativekit.data.telemetry.TelemetryRepositoryImpl
 import com.example.iot.nativekit.platform.Channels
 import com.example.iot.nativekit.platform.NativeRepositoryHolder
 import com.example.iot.nativekit.presentation.NativeViewModel
+import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.BinaryMessenger
 
 /**
@@ -25,6 +26,10 @@ object IotNativeInitializer {
     private var channels: Channels? = null
     @Volatile
     private var viewModel: NativeViewModel? = null
+
+    fun attach(flutterEngine: FlutterEngine, context: Context) {
+        attach(context, flutterEngine.dartExecutor.binaryMessenger)
+    }
 
     fun attach(context: Context, messenger: BinaryMessenger) {
         if (channels != null) {

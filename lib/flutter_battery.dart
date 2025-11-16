@@ -24,6 +24,12 @@ class BatteryMonitorConfig {
   /// 电池信息推送间隔（毫秒）
   final int batteryInfoIntervalMs;
   
+  /// 是否监控电池健康状态
+  final bool monitorBatteryHealth;
+  
+  /// 电池健康推送间隔
+  final int batteryHealthIntervalMs;
+  
   /// 是否启用防抖动（仅在电量变化时推送）
   final bool enableDebounce;
   
@@ -33,6 +39,8 @@ class BatteryMonitorConfig {
     this.monitorBatteryInfo = false,
     this.intervalMs = 1000,
     this.batteryInfoIntervalMs = 5000,
+    this.monitorBatteryHealth = false,
+    this.batteryHealthIntervalMs = 10000,
     this.enableDebounce = true,
   });
 }
@@ -122,6 +130,84 @@ class BatteryInfo {
                       'voltage: ${voltage.toStringAsFixed(2)}V, state: $state)';
 }
 
+enum BatteryHealthState {
+  good,
+  overheat,
+  dead,
+  overVoltage,
+  failure,
+  cold,
+  unknown,
+}
+
+class BatteryHealth {
+  final BatteryHealthState state;
+  final String statusLabel;
+  final bool isGood;
+  final double temperature;
+  final double voltage;
+  final int level;
+  final bool isCharging;
+  final String riskLevel;
+  final List<String> recommendations;
+  final int timestamp;
+
+  BatteryHealth({
+    required this.state,
+    required this.statusLabel,
+    required this.isGood,
+    required this.temperature,
+    required this.voltage,
+    required this.level,
+    required this.isCharging,
+    required this.riskLevel,
+    required this.recommendations,
+    required this.timestamp,
+  });
+
+  factory BatteryHealth.fromMap(Map<String, dynamic> map) {
+    return BatteryHealth(
+      state: _parseHealthState(map['state'] as String?),
+      statusLabel: map['statusLabel'] as String? ?? '未知',
+      isGood: map['isGood'] as bool? ?? false,
+      temperature: (map['temperature'] as num?)?.toDouble() ?? 0.0,
+      voltage: (map['voltage'] as num?)?.toDouble() ?? 0.0,
+      level: map['level'] as int? ?? 0,
+      isCharging: map['isCharging'] as bool? ?? false,
+      riskLevel: map['riskLevel'] as String? ?? 'LOW',
+      recommendations: (map['recommendations'] as List?)
+              ?.map((item) => item.toString())
+              .toList() ??
+          const <String>[],
+      timestamp:
+          map['timestamp'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  static BatteryHealthState _parseHealthState(String? value) {
+    switch (value) {
+      case 'GOOD':
+        return BatteryHealthState.good;
+      case 'OVERHEAT':
+        return BatteryHealthState.overheat;
+      case 'DEAD':
+        return BatteryHealthState.dead;
+      case 'OVER_VOLTAGE':
+        return BatteryHealthState.overVoltage;
+      case 'FAILURE':
+        return BatteryHealthState.failure;
+      case 'COLD':
+        return BatteryHealthState.cold;
+      default:
+        return BatteryHealthState.unknown;
+    }
+  }
+
+  @override
+  String toString() =>
+      'BatteryHealth(state: $state, risk: $riskLevel, temp: ${temperature.toStringAsFixed(1)}°C)';
+}
+
 /// 高级电池配置类，整合所有电池相关设置
 class BatteryConfiguration {
   /// 基本监听配置
@@ -135,6 +221,9 @@ class BatteryConfiguration {
   
   /// 电池信息变化回调
   final Function(BatteryInfo info)? onBatteryInfoChange;
+
+  /// 电池健康变化回调
+  final Function(BatteryHealth health)? onBatteryHealthChange;
   
   /// 低电量回调
   final Function(int batteryLevel)? onLowBattery;
@@ -145,6 +234,7 @@ class BatteryConfiguration {
     this.lowBatteryConfig,
     this.onBatteryLevelChange,
     this.onBatteryInfoChange,
+    this.onBatteryHealthChange,
     this.onLowBattery,
   });
 }

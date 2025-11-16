@@ -21,6 +21,9 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   
   // 电池信息变化回调
   Function(Map<String, dynamic> batteryInfo)? _batteryInfoChangeCallback;
+  
+  // 电池健康变化回调
+  Function(Map<String, dynamic> batteryHealth)? _batteryHealthChangeCallback;
 
   MethodChannelFlutterBattery() {
     methodChannel.setMethodCallHandler(_handleMethodCall);
@@ -46,6 +49,13 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
           final Map<dynamic, dynamic> map = call.arguments as Map<dynamic, dynamic>;
           final Map<String, dynamic> batteryInfo = map.cast<String, dynamic>();
           _batteryInfoChangeCallback!(batteryInfo);
+        }
+        return true;
+      case 'onBatteryHealthChanged':
+        if (call.arguments is Map && _batteryHealthChangeCallback != null) {
+          final Map<dynamic, dynamic> map = call.arguments as Map<dynamic, dynamic>;
+          final Map<String, dynamic> batteryHealth = map.cast<String, dynamic>();
+          _batteryHealthChangeCallback!(batteryHealth);
         }
         return true;
       default:
@@ -89,6 +99,15 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   }
   
   @override
+  Future<Map<String, dynamic>> getBatteryHealth() async {
+    final Map<dynamic, dynamic>? result = await methodChannel.invokeMapMethod('getBatteryHealth');
+    if (result == null) {
+      return <String, dynamic>{'error': 'Failed to get battery health'};
+    }
+    return result.cast<String, dynamic>();
+  }
+  
+  @override
   void setLowBatteryCallback(Function(int batteryLevel) callback) {
     _lowBatteryCallback = callback;
   }
@@ -101,6 +120,11 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   @override
   void setBatteryInfoChangeCallback(Function(Map<String, dynamic> batteryInfo) callback) {
     _batteryInfoChangeCallback = callback;
+  }
+  
+  @override
+  void setBatteryHealthChangeCallback(Function(Map<String, dynamic> batteryHealth) callback) {
+    _batteryHealthChangeCallback = callback;
   }
   
   @override
@@ -129,6 +153,23 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   @override
   Future<bool?> stopBatteryInfoListening() async {
     final result = await methodChannel.invokeMethod<bool>('stopBatteryInfoListening');
+    return result;
+  }
+  
+  @override
+  Future<bool?> startBatteryHealthListening({int intervalMs = 10000}) async {
+    final result = await methodChannel.invokeMethod<bool>(
+      'startBatteryHealthListening',
+      {
+        'intervalMs': intervalMs,
+      },
+    );
+    return result;
+  }
+  
+  @override
+  Future<bool?> stopBatteryHealthListening() async {
+    final result = await methodChannel.invokeMethod<bool>('stopBatteryHealthListening');
     return result;
   }
   

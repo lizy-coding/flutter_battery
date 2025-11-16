@@ -60,6 +60,10 @@ class MethodChannelHandler(
         batteryMonitor.setOnBatteryInfoChangeCallback { batteryInfo ->
             channel.invokeMethod("onBatteryInfoChanged", batteryInfo)
         }
+
+        batteryMonitor.setOnBatteryHealthChangeCallback { batteryHealth ->
+            channel.invokeMethod("onBatteryHealthChanged", batteryHealth)
+        }
     }
 
     /**
@@ -85,6 +89,14 @@ class MethodChannelHandler(
                         result.success(batteryInfo)
                     } catch (e: Exception) {
                         result.error("BATTERY_INFO_ERROR", "获取电池信息失败: ${e.message}", null)
+                    }
+                }
+                "getBatteryHealth" -> {
+                    try {
+                        val batteryHealth = batteryMonitor.getBatteryHealth()
+                        result.success(batteryHealth)
+                    } catch (e: Exception) {
+                        result.error("BATTERY_HEALTH_ERROR", "获取电池健康失败: ${e.message}", null)
                     }
                 }
                 "getBatteryOptimizationTips" -> {
@@ -134,6 +146,26 @@ class MethodChannelHandler(
                         result.success(true)
                     } catch (e: Exception) {
                         result.error("BATTERY_INFO_ERROR", "停止电池信息监听失败: ${e.message}", null)
+                    }
+                }
+                "startBatteryHealthListening" -> {
+                    try {
+                        val intervalMs = call.argument<Number>("intervalMs")?.toLong()
+                            ?: 10_000L
+                        batteryMonitor.startBatteryHealthListening(intervalMs)
+                        eventChannelHandler?.setBatteryHealthPush(true, intervalMs)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("BATTERY_HEALTH_ERROR", "开始电池健康监听失败: ${e.message}", null)
+                    }
+                }
+                "stopBatteryHealthListening" -> {
+                    try {
+                        batteryMonitor.stopBatteryHealthListening()
+                        eventChannelHandler?.setBatteryHealthPush(false)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("BATTERY_HEALTH_ERROR", "停止电池健康监听失败: ${e.message}", null)
                     }
                 }
                 "setBatteryLevelThreshold" -> {
