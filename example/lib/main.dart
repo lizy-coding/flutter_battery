@@ -20,6 +20,7 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
   final FlutterBattery _plugin = FlutterBattery();
   int? _batteryLevel;
   BatteryInfo? _batteryInfo;
+  BatteryHealth? _batteryHealth;
   // IoT native bridge
   static const MethodChannel _iotMethod = MethodChannel('iot/native');
   static const EventChannel _iotEvent = EventChannel('iot/stream');
@@ -32,9 +33,14 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
     _plugin.configureBatteryCallbacks(
       onBatteryLevelChange: (level) => setState(() => _batteryLevel = level),
       onBatteryInfoChange: (info) => setState(() => _batteryInfo = info),
+      onBatteryHealthChange: (health) => setState(() => _batteryHealth = health),
     );
     _plugin.configureBatteryMonitor(
-      BatteryMonitorConfig(monitorBatteryLevel: true, monitorBatteryInfo: true),
+      BatteryMonitorConfig(
+        monitorBatteryLevel: true,
+        monitorBatteryInfo: true,
+        monitorBatteryHealth: true,
+      ),
     );
     _iotSub = _iotEvent.receiveBroadcastStream().listen((dynamic e) {
       debugPrint('IoT event: $e');
@@ -46,10 +52,12 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
   Future<void> _refresh() async {
     final level = await _plugin.getBatteryLevel();
     final info = await _plugin.getBatteryInfo();
+    final health = await _plugin.getBatteryHealth();
     if (!mounted) return;
     setState(() {
       _batteryLevel = level;
       _batteryInfo = info;
+      _batteryHealth = health;
     });
   }
 
@@ -83,6 +91,16 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
               Text('Temp: ${_batteryInfo!.temperature.toStringAsFixed(1)}°C'),
               Text('Voltage: ${_batteryInfo!.voltage.toStringAsFixed(2)}V'),
             ],
+            if (_batteryHealth != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Health: ${_batteryHealth!.state.name.toUpperCase()} (${_batteryHealth!.statusLabel})',
+              ),
+              Text('Risk: ${_batteryHealth!.riskLevel}'),
+              ..._batteryHealth!.recommendations
+                  .map((tip) => Text('• $tip'))
+                  .toList(),
+            ],
             const SizedBox(height: 24),
             const Text('IoT Native Controls'),
             Wrap(spacing: 8, runSpacing: 8, children: [
@@ -99,4 +117,3 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
     );
   }
 }
-

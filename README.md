@@ -216,15 +216,86 @@ example/
 ## 功能特性
 
 - 获取当前电池电量百分比和完整电池信息（电量、温度、电压、充电状态等）
-- 实时监听电池电量和电池信息变化
-- 设置电池低电量阈值监控
-- 支持系统通知或Flutter自定义UI响应低电量
+- 新增电池健康评估：实时推送健康状态、风险等级与推荐措施
+- 实时监听电池电量、电池信息及电池健康变化
+- 设置电池低电量阈值监控，支持系统通知或Flutter自定义UI
 - 支持定时或即时推送通知
 - 电池电量动画组件可视化展示
-- 电池性能优化建议
-- 防抖动机制，减少电量推送频率
+- 电池性能优化建议、防抖动机制
+- IoT 原生桥接：模拟 BLE 设备扫描、连接、遥测与电池事件
 - 线程安全的资源管理和错误处理
 - 跨平台支持（Android）
+
+## 项目结构
+
+```
+.
+├── lib/                       # Flutter 插件 API 与组件
+├── android/                   # Android 原生插件实现（含 IoT Jetpack 架构）
+├── example/                   # Flutter 示例工程（演示 Battery + IoT）
+├── integration/               # 预留集成测试
+├── scripts/                   # 自动化/脚本工具
+├── test/                      # Dart 单元测试
+├── IOT_UPGRADE_PLAN.md        # IoT 能力演进计划
+└── README.md                  # 当前文档
+```
+
+核心目录说明：
+
+- `lib/`：对外公开的 `FlutterBattery` API、平台接口定义以及电池动画组件。
+- `android/`：`FlutterBatteryPlugin`、电池监控核心 `BatteryMonitor`、通知工具、`iot/nativekit` Jetpack 架构（domain/data/presentation/service/platform）。
+- `example/`：最小可运行示例，展示如何调用电池 APIs 以及通过 `MethodChannel('iot/native')` 与 IoT 原生层交互。
+- `integration/`：保留用于未来的集成/端到端测试。
+- `scripts/`：脚本、自动化工具及工程初始化模板。
+
+## 原生通道与接口说明
+
+### `flutter_battery` MethodChannel （电池能力）
+
+| 方法 | 说明 | 参数 | 返回 |
+| --- | --- | --- | --- |
+| `getPlatformVersion()` | 返回 Android 版本 | - | `String` |
+| `getBatteryLevel()` | 获取当前电量 | - | `int` (0-100) |
+| `getBatteryInfo()` | 获取完整电池信息 | - | `Map` `{level,isCharging,temperature,voltage,state,timestamp}` |
+| `getBatteryHealth()` | 获取电池健康状态 | - | `Map` `{state,statusLabel,riskLevel,recommendations,...}` |
+| `getBatteryOptimizationTips()` | 返回优化建议 | - | `List<String>` |
+| `setBatteryLevelThreshold()` | 启用低电量监控 | `threshold,title,message,intervalMinutes,useFlutterRendering` | `bool` |
+| `stopBatteryMonitoring()` | 停止低电量监控 | - | `bool` |
+| `setPushInterval()` | 设置推送间隔与防抖 | `intervalMs,enableDebounce` | `bool` |
+| `startBatteryLevelListening()` / `stopBatteryLevelListening()` | 开关电量广播监听 | - | `bool` |
+| `startBatteryInfoListening()` / `stopBatteryInfoListening()` | 开关完整信息推送 | `intervalMs` | `bool` |
+| `startBatteryHealthListening()` / `stopBatteryHealthListening()` | 开关电池健康推送 | `intervalMs` | `bool` |
+| `scheduleNotification()` / `showNotification()` / `sendNotification()` | 调度或立即显示系统通知 | `title,message,delay/delayMinutes` | `bool` |
+
+> Flutter 侧的 `FlutterBattery.configureBattery / configureBatteryMonitor / configureBatteryCallbacks` 封装了上表中的多个原生调用，推荐优先使用高阶 API。
+
+#### `flutter_battery/battery_stream` EventChannel
+
+- 默认 payload：`{batteryLevel: int, timestamp: int}`（电量心跳）
+- `type == "BATTERY_INFO"`：携带 `BatteryInfo` 字段
+- `type == "BATTERY_HEALTH"`：携带 `BatteryHealth` 字段（风险等级、建议列表等）
+- 所有事件均由 `EventChannelHandler` 管理，支持 `setPushInterval` 和 `setBatteryInfoPush / setBatteryHealthPush` 控制频率。
+
+### `iot/native` MethodChannel （IoT 模块）
+
+| 方法 | 说明 | 参数 | 返回 |
+| --- | --- | --- | --- |
+| `scanDevices` | 开始扫描模拟 BLE 设备 | - | `void` |
+| `stopScan` | 停止扫描 | - | `void` |
+| `connect` | 连接指定设备 | `deviceId` | `void` |
+| `disconnect` | 断开当前设备 | - | `void` |
+| `startSync` | 启动前台同步服务（推送遥测） | - | `void` |
+| `stopSync` | 停止同步服务 | - | `void` |
+
+#### `iot/stream` EventChannel
+
+事件 payload 统一结构 `{type: String, payload: ...}`：
+
+- `type == "devices"`：`payload` 为设备列表（字段 `id,name,rssi,connected`）。
+- `type == "telemetry"`：`payload` 为 `Telemetry` Map（`timestamp,speed,batteryPct`）。
+- `type == "battery"`：`payload` 为 `{value: Int}`，模拟远端设备电量。
+
+> 插件内部已在 `FlutterBatteryPlugin` 中调用 `IotNativeInitializer.attach()`，示例应用只需订阅 `EventChannel('iot/stream')` 即可。
 
 ## 安装
 
@@ -319,8 +390,10 @@ await flutterBatteryPlugin.configureBatteryMonitor(
   BatteryMonitorConfig(
     monitorBatteryLevel: true,
     monitorBatteryInfo: true,
+    monitorBatteryHealth: true,
     intervalMs: 2000,
     batteryInfoIntervalMs: 10000,
+    batteryHealthIntervalMs: 15000,
     enableDebounce: true,
   ),
 );
@@ -335,6 +408,9 @@ flutterBatteryPlugin.configureBatteryCallbacks(
   },
   onBatteryInfoChange: (info) {
     print('电池信息更新: $info');
+  },
+  onBatteryHealthChange: (health) {
+    print('电池健康状态: $health');
   },
   onLowBattery: (batteryLevel) {
     print('低电量警告: $batteryLevel%');
@@ -372,6 +448,14 @@ print('当前电池电量: $batteryLevel%');
 final batteryInfo = await flutterBatteryPlugin.getBatteryInfo();
 print('电池信息: $batteryInfo');
 // 输出: 电池信息: BatteryInfo(level: 85%, isCharging: true, temperature: 37.5°C, voltage: 4.35V, state: BatteryState.CHARGING)
+```
+
+#### 获取电池健康
+
+```dart
+final batteryHealth = await flutterBatteryPlugin.getBatteryHealth();
+print('电池健康: $batteryHealth');
+// BatteryHealth(state: BatteryHealthState.good, risk: LOW, temp: 32.0°C)
 ```
 
 #### 获取电池优化建议

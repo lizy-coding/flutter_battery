@@ -256,6 +256,12 @@ class FlutterBattery {
     return BatteryInfo.fromMap(infoMap);
   }
   
+  /// 获取电池健康信息
+  Future<BatteryHealth> getBatteryHealth() async {
+    final healthMap = await FlutterBatteryPlatform.instance.getBatteryHealth();
+    return BatteryHealth.fromMap(healthMap);
+  }
+  
   /// 获取电池优化建议
   Future<List<String>> getBatteryOptimizationTips() {
     return FlutterBatteryPlatform.instance.getBatteryOptimizationTips();
@@ -268,7 +274,10 @@ class FlutterBattery {
   
   /// 获取格式化的电池信息流
   Stream<BatteryInfo> get batteryInfoStream {
-    return batteryStream.map((event) {
+    return batteryStream.where((event) {
+      final type = event['type'];
+      return type == null || type == 'BATTERY_INFO';
+    }).map((event) {
       // 检查是否包含完整的电池信息
       if (event.containsKey('type') && event['type'] == 'BATTERY_INFO') {
         return BatteryInfo.fromMap(event);
@@ -288,6 +297,13 @@ class FlutterBattery {
       );
     });
   }
+
+  /// 电池健康信息流
+  Stream<BatteryHealth> get batteryHealthStream {
+    return batteryStream.where((event) => event['type'] == 'BATTERY_HEALTH').map(
+          (event) => BatteryHealth.fromMap(Map<String, dynamic>.from(event)),
+        );
+  }
   
   /// 配置所有电池相关回调
   /// 
@@ -299,6 +315,7 @@ class FlutterBattery {
     Function(int batteryLevel)? onLowBattery,
     Function(int batteryLevel)? onBatteryLevelChange,
     Function(BatteryInfo info)? onBatteryInfoChange,
+    Function(BatteryHealth health)? onBatteryHealthChange,
   }) {
     // 设置低电量回调
     if (onLowBattery != null) {
@@ -315,6 +332,13 @@ class FlutterBattery {
       FlutterBatteryPlatform.instance.setBatteryInfoChangeCallback((Map<String, dynamic> infoMap) {
         final info = BatteryInfo.fromMap(infoMap);
         onBatteryInfoChange(info);
+      });
+    }
+
+    if (onBatteryHealthChange != null) {
+      FlutterBatteryPlatform.instance.setBatteryHealthChangeCallback((Map<String, dynamic> map) {
+        final health = BatteryHealth.fromMap(map);
+        onBatteryHealthChange(health);
       });
     }
   }
@@ -355,8 +379,10 @@ class FlutterBattery {
     return FlutterBatteryPlatform.instance.configureBatteryMonitor(
       monitorBatteryLevel: config.monitorBatteryLevel,
       monitorBatteryInfo: config.monitorBatteryInfo,
+      monitorBatteryHealth: config.monitorBatteryHealth,
       intervalMs: config.intervalMs,
       batteryInfoIntervalMs: config.batteryInfoIntervalMs,
+      batteryHealthIntervalMs: config.batteryHealthIntervalMs,
       enableDebounce: config.enableDebounce,
     );
   }
@@ -494,6 +520,7 @@ class FlutterBattery {
       configureBatteryCallbacks(
         onBatteryLevelChange: config.onBatteryLevelChange,
         onBatteryInfoChange: config.onBatteryInfoChange,
+        onBatteryHealthChange: config.onBatteryHealthChange,
         onLowBattery: config.onLowBattery,
       );
       
