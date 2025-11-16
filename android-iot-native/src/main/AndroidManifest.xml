@@ -5,7 +5,7 @@
 
     <application>
         <service
-            android:name=".service.TelemetryForegroundService"
+            android:name=".service.SyncService"
             android:exported="false"
             android:foregroundServiceType="dataSync|connectedDevice|location"
             android:stopWithTask="false" />
