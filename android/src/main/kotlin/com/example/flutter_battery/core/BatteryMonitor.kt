@@ -47,6 +47,8 @@ class BatteryMonitor(private val context: Context) {
     
     // 上一次电量值，用于过滤相同的电量变化
     private var lastBatteryLevel: Int = -1
+    // 上次已推送给回调的电量值（用于防抖对比）
+    private var lastPushedBatteryLevelForCallback: Int = -1
     
     // 电池电量推送是否启用防抖动（仅在电量变化时推送）
     private var enableBatteryLevelDebounce: Boolean = true
@@ -80,7 +82,9 @@ class BatteryMonitor(private val context: Context) {
         try {
             val currentLevel = lastBatteryLevel
             if (currentLevel >= 0) { // 确保已经初始化
-                if (!enableBatteryLevelDebounce || lastBatteryLevel != currentLevel) {
+                val shouldPush = !enableBatteryLevelDebounce || currentLevel != lastPushedBatteryLevelForCallback
+                if (shouldPush) {
+                    lastPushedBatteryLevelForCallback = currentLevel
                     onBatteryLevelChangeCallback?.invoke(currentLevel)
                 }
             }

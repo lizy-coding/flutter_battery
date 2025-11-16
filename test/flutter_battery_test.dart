@@ -1,4 +1,5 @@
 import 'package:flutter_battery/flutter_battery_platform_interface.dart';
+import 'package:flutter_battery/flutter_battery.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:flutter/widgets.dart';
@@ -283,5 +284,24 @@ void main() {
     expect(batteryEvent, isA<Map<String, dynamic>>());
     expect(batteryEvent['batteryLevel'], 75);
     expect(batteryEvent['timestamp'], isA<int>());
+  });
+
+  test('configureBattery aggregates results', () async {
+    final plugin = FlutterBattery();
+    final result = await plugin.configureBattery(
+      BatteryConfiguration(
+        monitorConfig: BatteryMonitorConfig(
+          monitorBatteryLevel: true,
+          monitorBatteryInfo: true,
+        ),
+        lowBatteryConfig: BatteryLevelMonitorConfig(enable: true),
+        onBatteryLevelChange: (level) {},
+        onBatteryInfoChange: (info) {},
+        onLowBattery: (level) {},
+      ),
+    );
+    expect(result['callbacksConfigured'], true);
+    expect(result['monitoringResults'], isA<Map<String, bool>>());
+    expect(result['lowBatteryMonitoring'], true);
   });
 }

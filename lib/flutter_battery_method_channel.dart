@@ -142,8 +142,7 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
           'error': 'Invalid event format',
         };
       }
-      final Map<dynamic, dynamic> map = event as Map<dynamic, dynamic>;
-      return map.cast<String, dynamic>();
+      return Map<String, dynamic>.from(event);
     });
   }
   

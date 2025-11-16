@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 
 class BatteryAnimation extends StatefulWidget {
   final int batteryLevel;
@@ -167,7 +166,7 @@ class BatteryPainter extends CustomPainter {
 
     // 计算填充高度（从底部向上填充）
     final fillHeight = (height * 0.95) * batteryLevel;
-    final fillMargin = 6.0; // 留出一些边距
+    const fillMargin = 6.0; // 留出一些边距
 
     final fillRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(

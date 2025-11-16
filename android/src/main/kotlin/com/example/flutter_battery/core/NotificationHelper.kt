@@ -25,15 +25,7 @@ class NotificationHelper(
     // 挂起的通知请求列表
     private val pendingNotificationRequests = mutableListOf<PendingNotificationRequest>()
     
-    // 权限结果监听器
-    private var permissionResultListener: ((requestCode: Int, permissions: Array<out String>, grantResults: IntArray) -> Boolean)? = null
-    
-    /**
-     * 设置权限结果监听器
-     */
-    fun setPermissionResultListener(listener: (requestCode: Int, permissions: Array<out String>, grantResults: IntArray) -> Boolean) {
-        permissionResultListener = listener
-    }
+    // 无需额外权限结果监听器，插件直接转发至 handleRequestPermissionsResult
     
     /**
      * 检查通知权限
@@ -214,7 +206,6 @@ class NotificationHelper(
      * 清理资源
      */
     fun dispose() {
-        permissionResultListener = null
         pendingNotificationRequests.clear()
     }
     
