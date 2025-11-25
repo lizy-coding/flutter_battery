@@ -72,7 +72,20 @@ class MockFlutterBatteryPlatform
   @override
   Stream<Map<String, dynamic>> get batteryStream {
     return Stream.fromIterable([
-      {'batteryLevel': 75, 'timestamp': DateTime.now().millisecondsSinceEpoch}
+      {'batteryLevel': 75, 'timestamp': DateTime.now().millisecondsSinceEpoch},
+      {
+        'type': 'BATTERY_HEALTH',
+        'state': 'GOOD',
+        'statusLabel': '电池状态良好',
+        'isGood': true,
+        'temperature': 30.0,
+        'voltage': 4.1,
+        'level': 80,
+        'isCharging': false,
+        'riskLevel': 'LOW',
+        'recommendations': ['测试建议'],
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      },
     ]);
   }
   
@@ -92,6 +105,22 @@ class MockFlutterBatteryPlatform
       'timestamp': DateTime.now().millisecondsSinceEpoch
     });
   }
+
+  @override
+  Future<Map<String, dynamic>> getBatteryHealth() {
+    return Future.value({
+      'state': 'GOOD',
+      'statusLabel': '电池状态良好',
+      'isGood': true,
+      'temperature': 30.0,
+      'voltage': 4.1,
+      'level': 80,
+      'isCharging': false,
+      'riskLevel': 'LOW',
+      'recommendations': ['保持良好的充电习惯'],
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
   
   @override
   Future<List<String>> getBatteryOptimizationTips() {
@@ -102,6 +131,11 @@ class MockFlutterBatteryPlatform
   void setBatteryInfoChangeCallback(Function(Map<String, dynamic> batteryInfo) callback) {
     // no-op for testing
   }
+
+  @override
+  void setBatteryHealthChangeCallback(Function(Map<String, dynamic> batteryHealth) callback) {
+    // no-op for testing
+  }
   
   @override
   Future<bool?> startBatteryInfoListening({int intervalMs = 5000}) {
@@ -110,6 +144,16 @@ class MockFlutterBatteryPlatform
   
   @override
   Future<bool?> stopBatteryInfoListening() {
+    return Future.value(true);
+  }
+
+  @override
+  Future<bool?> startBatteryHealthListening({int intervalMs = 10000}) {
+    return Future.value(true);
+  }
+
+  @override
+  Future<bool?> stopBatteryHealthListening() {
     return Future.value(true);
   }
   
@@ -126,14 +170,17 @@ class MockFlutterBatteryPlatform
   Future<Map<String, bool>> configureBatteryMonitor({
     bool monitorBatteryLevel = false,
     bool monitorBatteryInfo = false,
+    bool monitorBatteryHealth = false,
     int intervalMs = 1000,
     int batteryInfoIntervalMs = 5000,
+    int batteryHealthIntervalMs = 10000,
     bool enableDebounce = true,
   }) {
     return Future.value({
       'setPushInterval': true,
       'batteryLevelMonitor': true,
-      'batteryInfoMonitor': true
+      'batteryInfoMonitor': true,
+      'batteryHealthMonitor': monitorBatteryHealth,
     });
   }
   
@@ -142,6 +189,7 @@ class MockFlutterBatteryPlatform
     Function(int batteryLevel)? onLowBattery,
     Function(int batteryLevel)? onBatteryLevelChange,
     Function(Map<String, dynamic> batteryInfo)? onBatteryInfoChange,
+    Function(Map<String, dynamic> batteryHealth)? onBatteryHealthChange,
   }) {
     // no-op for testing
   }
@@ -270,6 +318,13 @@ void main() {
     expect(batteryInfo['timestamp'], isA<int>());
   });
   
+  test('getBatteryHealth returns valid map', () async {
+    final health = await FlutterBatteryPlatform.instance.getBatteryHealth();
+    expect(health['state'], 'GOOD');
+    expect(health['statusLabel'], isA<String>());
+    expect(health['recommendations'], isA<List<String>>());
+  });
+  
   test('getBatteryOptimizationTips returns non-empty list', () async {
     final tips = await FlutterBatteryPlatform.instance.getBatteryOptimizationTips();
     
@@ -286,6 +341,13 @@ void main() {
     expect(batteryEvent['timestamp'], isA<int>());
   });
 
+  test('batteryHealthStream emits BatteryHealth', () async {
+    final plugin = FlutterBattery();
+    final health = await plugin.batteryHealthStream.first;
+    expect(health.state, BatteryHealthState.good);
+    expect(health.recommendations, isNotEmpty);
+  });
+
   test('configureBattery aggregates results', () async {
     final plugin = FlutterBattery();
     final result = await plugin.configureBattery(
@@ -293,10 +355,12 @@ void main() {
         monitorConfig: BatteryMonitorConfig(
           monitorBatteryLevel: true,
           monitorBatteryInfo: true,
+          monitorBatteryHealth: true,
         ),
         lowBatteryConfig: BatteryLevelMonitorConfig(enable: true),
         onBatteryLevelChange: (level) {},
         onBatteryInfoChange: (info) {},
+        onBatteryHealthChange: (health) {},
         onLowBattery: (level) {},
       ),
     );

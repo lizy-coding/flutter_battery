@@ -1,4 +1,0 @@
-<resources>
-    <string name="telemetry_channel_name">IoT Telemetry</string>
-    <string name="telemetry_channel_desc">Telemetry sync notification channel</string>
-</resources>

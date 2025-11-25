@@ -24,6 +24,12 @@ class BatteryMonitorConfig {
   /// 电池信息推送间隔（毫秒）
   final int batteryInfoIntervalMs;
   
+  /// 是否监控电池健康状态
+  final bool monitorBatteryHealth;
+  
+  /// 电池健康推送间隔
+  final int batteryHealthIntervalMs;
+  
   /// 是否启用防抖动（仅在电量变化时推送）
   final bool enableDebounce;
   
@@ -33,6 +39,8 @@ class BatteryMonitorConfig {
     this.monitorBatteryInfo = false,
     this.intervalMs = 1000,
     this.batteryInfoIntervalMs = 5000,
+    this.monitorBatteryHealth = false,
+    this.batteryHealthIntervalMs = 10000,
     this.enableDebounce = true,
   });
 }
@@ -122,6 +130,84 @@ class BatteryInfo {
                       'voltage: ${voltage.toStringAsFixed(2)}V, state: $state)';
 }
 
+enum BatteryHealthState {
+  good,
+  overheat,
+  dead,
+  overVoltage,
+  failure,
+  cold,
+  unknown,
+}
+
+class BatteryHealth {
+  final BatteryHealthState state;
+  final String statusLabel;
+  final bool isGood;
+  final double temperature;
+  final double voltage;
+  final int level;
+  final bool isCharging;
+  final String riskLevel;
+  final List<String> recommendations;
+  final int timestamp;
+
+  BatteryHealth({
+    required this.state,
+    required this.statusLabel,
+    required this.isGood,
+    required this.temperature,
+    required this.voltage,
+    required this.level,
+    required this.isCharging,
+    required this.riskLevel,
+    required this.recommendations,
+    required this.timestamp,
+  });
+
+  factory BatteryHealth.fromMap(Map<String, dynamic> map) {
+    return BatteryHealth(
+      state: _parseHealthState(map['state'] as String?),
+      statusLabel: map['statusLabel'] as String? ?? '未知',
+      isGood: map['isGood'] as bool? ?? false,
+      temperature: (map['temperature'] as num?)?.toDouble() ?? 0.0,
+      voltage: (map['voltage'] as num?)?.toDouble() ?? 0.0,
+      level: map['level'] as int? ?? 0,
+      isCharging: map['isCharging'] as bool? ?? false,
+      riskLevel: map['riskLevel'] as String? ?? 'LOW',
+      recommendations: (map['recommendations'] as List?)
+              ?.map((item) => item.toString())
+              .toList() ??
+          const <String>[],
+      timestamp:
+          map['timestamp'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  static BatteryHealthState _parseHealthState(String? value) {
+    switch (value) {
+      case 'GOOD':
+        return BatteryHealthState.good;
+      case 'OVERHEAT':
+        return BatteryHealthState.overheat;
+      case 'DEAD':
+        return BatteryHealthState.dead;
+      case 'OVER_VOLTAGE':
+        return BatteryHealthState.overVoltage;
+      case 'FAILURE':
+        return BatteryHealthState.failure;
+      case 'COLD':
+        return BatteryHealthState.cold;
+      default:
+        return BatteryHealthState.unknown;
+    }
+  }
+
+  @override
+  String toString() =>
+      'BatteryHealth(state: $state, risk: $riskLevel, temp: ${temperature.toStringAsFixed(1)}°C)';
+}
+
 /// 高级电池配置类，整合所有电池相关设置
 class BatteryConfiguration {
   /// 基本监听配置
@@ -135,6 +221,9 @@ class BatteryConfiguration {
   
   /// 电池信息变化回调
   final Function(BatteryInfo info)? onBatteryInfoChange;
+
+  /// 电池健康变化回调
+  final Function(BatteryHealth health)? onBatteryHealthChange;
   
   /// 低电量回调
   final Function(int batteryLevel)? onLowBattery;
@@ -145,6 +234,7 @@ class BatteryConfiguration {
     this.lowBatteryConfig,
     this.onBatteryLevelChange,
     this.onBatteryInfoChange,
+    this.onBatteryHealthChange,
     this.onLowBattery,
   });
 }
@@ -166,6 +256,12 @@ class FlutterBattery {
     return BatteryInfo.fromMap(infoMap);
   }
   
+  /// 获取电池健康信息
+  Future<BatteryHealth> getBatteryHealth() async {
+    final healthMap = await FlutterBatteryPlatform.instance.getBatteryHealth();
+    return BatteryHealth.fromMap(healthMap);
+  }
+  
   /// 获取电池优化建议
   Future<List<String>> getBatteryOptimizationTips() {
     return FlutterBatteryPlatform.instance.getBatteryOptimizationTips();
@@ -178,7 +274,10 @@ class FlutterBattery {
   
   /// 获取格式化的电池信息流
   Stream<BatteryInfo> get batteryInfoStream {
-    return batteryStream.map((event) {
+    return batteryStream.where((event) {
+      final type = event['type'];
+      return type == null || type == 'BATTERY_INFO';
+    }).map((event) {
       // 检查是否包含完整的电池信息
       if (event.containsKey('type') && event['type'] == 'BATTERY_INFO') {
         return BatteryInfo.fromMap(event);
@@ -198,6 +297,13 @@ class FlutterBattery {
       );
     });
   }
+
+  /// 电池健康信息流
+  Stream<BatteryHealth> get batteryHealthStream {
+    return batteryStream.where((event) => event['type'] == 'BATTERY_HEALTH').map(
+          (event) => BatteryHealth.fromMap(Map<String, dynamic>.from(event)),
+        );
+  }
   
   /// 配置所有电池相关回调
   /// 
@@ -209,6 +315,7 @@ class FlutterBattery {
     Function(int batteryLevel)? onLowBattery,
     Function(int batteryLevel)? onBatteryLevelChange,
     Function(BatteryInfo info)? onBatteryInfoChange,
+    Function(BatteryHealth health)? onBatteryHealthChange,
   }) {
     // 设置低电量回调
     if (onLowBattery != null) {
@@ -225,6 +332,13 @@ class FlutterBattery {
       FlutterBatteryPlatform.instance.setBatteryInfoChangeCallback((Map<String, dynamic> infoMap) {
         final info = BatteryInfo.fromMap(infoMap);
         onBatteryInfoChange(info);
+      });
+    }
+
+    if (onBatteryHealthChange != null) {
+      FlutterBatteryPlatform.instance.setBatteryHealthChangeCallback((Map<String, dynamic> map) {
+        final health = BatteryHealth.fromMap(map);
+        onBatteryHealthChange(health);
       });
     }
   }
@@ -265,8 +379,10 @@ class FlutterBattery {
     return FlutterBatteryPlatform.instance.configureBatteryMonitor(
       monitorBatteryLevel: config.monitorBatteryLevel,
       monitorBatteryInfo: config.monitorBatteryInfo,
+      monitorBatteryHealth: config.monitorBatteryHealth,
       intervalMs: config.intervalMs,
       batteryInfoIntervalMs: config.batteryInfoIntervalMs,
+      batteryHealthIntervalMs: config.batteryHealthIntervalMs,
       enableDebounce: config.enableDebounce,
     );
   }
@@ -404,6 +520,7 @@ class FlutterBattery {
       configureBatteryCallbacks(
         onBatteryLevelChange: config.onBatteryLevelChange,
         onBatteryInfoChange: config.onBatteryInfoChange,
+        onBatteryHealthChange: config.onBatteryHealthChange,
         onLowBattery: config.onLowBattery,
       );
       

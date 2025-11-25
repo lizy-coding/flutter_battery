@@ -39,6 +39,11 @@ abstract class FlutterBatteryPlatform extends PlatformInterface {
     throw UnimplementedError('getBatteryInfo() has not been implemented.');
   }
   
+  /// 获取电池健康信息
+  Future<Map<String, dynamic>> getBatteryHealth() {
+    throw UnimplementedError('getBatteryHealth() has not been implemented.');
+  }
+  
   /// 获取电池优化建议
   /// 
   /// 返回基于当前电池状态的优化建议列表
@@ -56,6 +61,7 @@ abstract class FlutterBatteryPlatform extends PlatformInterface {
     Function(int batteryLevel)? onLowBattery,
     Function(int batteryLevel)? onBatteryLevelChange,
     Function(Map<String, dynamic> batteryInfo)? onBatteryInfoChange,
+    Function(Map<String, dynamic> batteryHealth)? onBatteryHealthChange,
   }) {
     if (onLowBattery != null) {
       setLowBatteryCallback(onLowBattery);
@@ -67,6 +73,10 @@ abstract class FlutterBatteryPlatform extends PlatformInterface {
     
     if (onBatteryInfoChange != null) {
       setBatteryInfoChangeCallback(onBatteryInfoChange);
+    }
+
+    if (onBatteryHealthChange != null) {
+      setBatteryHealthChangeCallback(onBatteryHealthChange);
     }
   }
   
@@ -84,6 +94,11 @@ abstract class FlutterBatteryPlatform extends PlatformInterface {
   void setBatteryInfoChangeCallback(Function(Map<String, dynamic> batteryInfo) callback) {
     throw UnimplementedError('setBatteryInfoChangeCallback() has not been implemented.');
   }
+
+  /// 设置电池健康变化回调函数
+  void setBatteryHealthChangeCallback(Function(Map<String, dynamic> batteryHealth) callback) {
+    throw UnimplementedError('setBatteryHealthChangeCallback() has not been implemented.');
+  }
   
   /// 配置电池监听选项
   /// 
@@ -97,8 +112,10 @@ abstract class FlutterBatteryPlatform extends PlatformInterface {
   Future<Map<String, bool>> configureBatteryMonitor({
     bool monitorBatteryLevel = false,
     bool monitorBatteryInfo = false,
+    bool monitorBatteryHealth = false,
     int intervalMs = 1000, 
     int batteryInfoIntervalMs = 5000,
+    int batteryHealthIntervalMs = 10000,
     bool enableDebounce = true,
   }) async {
     final result = <String, bool>{};
@@ -126,6 +143,14 @@ abstract class FlutterBatteryPlatform extends PlatformInterface {
     } else {
       result['batteryInfoMonitor'] = await stopBatteryInfoListening() ?? false;
     }
+
+    if (monitorBatteryHealth) {
+      result['batteryHealthMonitor'] = await startBatteryHealthListening(
+        intervalMs: batteryHealthIntervalMs,
+      ) ?? false;
+    } else {
+      result['batteryHealthMonitor'] = await stopBatteryHealthListening() ?? false;
+    }
     
     return result;
   }
@@ -150,6 +175,18 @@ abstract class FlutterBatteryPlatform extends PlatformInterface {
   /// 停止监听完整电池信息变化
   Future<bool?> stopBatteryInfoListening() {
     throw UnimplementedError('stopBatteryInfoListening() has not been implemented.');
+  }
+
+  /// 开始监听电池健康状态
+  Future<bool?> startBatteryHealthListening({
+    int intervalMs = 10000,
+  }) {
+    throw UnimplementedError('startBatteryHealthListening() has not been implemented.');
+  }
+
+  /// 停止监听电池健康状态
+  Future<bool?> stopBatteryHealthListening() {
+    throw UnimplementedError('stopBatteryHealthListening() has not been implemented.');
   }
   
   /// 获取电池电量信息流

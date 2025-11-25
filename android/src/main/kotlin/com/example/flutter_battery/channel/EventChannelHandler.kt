@@ -24,6 +24,7 @@ class EventChannelHandler(
     
     // 电池信息推送定时器
     private val batteryInfoManager = TimerManager()
+    private val batteryHealthManager = TimerManager()
     
     // 默认推送间隔（毫秒）
     private var pushIntervalMs: Long = 1000
@@ -36,6 +37,7 @@ class EventChannelHandler(
     
     // 是否启用完整电池信息推送
     private var enableBatteryInfoPush: Boolean = false
+    private var enableBatteryHealthPush: Boolean = false
     
     /**
      * 初始化
@@ -49,6 +51,9 @@ class EventChannelHandler(
         
         // 配置完整电池信息定时器任务
         batteryInfoManager.setTask { pushCompleteBatteryInfo() }
+
+        // 配置电池健康推送任务
+        batteryHealthManager.setTask { pushBatteryHealthInfo() }
     }
     
     /**
@@ -80,6 +85,21 @@ class EventChannelHandler(
             }
         } else {
             batteryInfoManager.stop()
+        }
+    }
+
+    /**
+     * 设置电池健康推送
+     */
+    fun setBatteryHealthPush(enable: Boolean, intervalMs: Long = 10_000) {
+        this.enableBatteryHealthPush = enable
+        if (enable) {
+            batteryHealthManager.setInterval(intervalMs)
+            if (eventSink != null) {
+                batteryHealthManager.start()
+            }
+        } else {
+            batteryHealthManager.stop()
         }
     }
     
@@ -130,6 +150,22 @@ class EventChannelHandler(
             )
         }
     }
+
+    private fun pushBatteryHealthInfo() {
+        try {
+            val health = batteryMonitor.getBatteryHealth()
+            val payload = HashMap<String, Any>(health.size + 1)
+            payload.putAll(health)
+            payload["type"] = "BATTERY_HEALTH"
+            eventSink?.success(payload)
+        } catch (e: Exception) {
+            eventSink?.error(
+                "BATTERY_HEALTH_ERROR",
+                "获取电池健康信息失败: ${e.message}",
+                e.stackTraceToString()
+            )
+        }
+    }
     
     /**
      * 当监听开始
@@ -158,6 +194,10 @@ class EventChannelHandler(
         if (enableBatteryInfoPush) {
             batteryInfoManager.start()
         }
+
+        if (enableBatteryHealthPush) {
+            batteryHealthManager.start()
+        }
     }
     
     /**
@@ -174,6 +214,7 @@ class EventChannelHandler(
     private fun stopAllTimers() {
         timerManager.stop()
         batteryInfoManager.stop()
+        batteryHealthManager.stop()
     }
     
     /**
@@ -185,6 +226,7 @@ class EventChannelHandler(
             
             timerManager.dispose()
             batteryInfoManager.dispose()
+            batteryHealthManager.dispose()
             
             eventSink = null
             eventChannel.setStreamHandler(null)

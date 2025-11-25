@@ -2,16 +2,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.flutter_battery">
 
-    <!-- 通知相关权限 -->
+    <!-- 通知 & IoT 权限 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     
     <application>
         <!-- 通知闹钟接收器 -->
         <receiver
             android:name="com.example.push_notification.receiver.NotificationAlarmReceiver"
             android:exported="false" />
+
+        <service
+            android:name="com.example.iot.nativekit.service.SyncService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync|connectedDevice|location"
+            android:stopWithTask="false" />
     </application>
 </manifest> 
