@@ -1,12 +1,17 @@
 package com.example.flutter_battery
 
+import android.app.Application
 import android.content.Context
 import androidx.annotation.NonNull
+import com.example.flutter_battery.ble.BleManager
+import com.example.flutter_battery.channel.BleConnectionEventChannelHandler
+import com.example.flutter_battery.channel.BleScanEventChannelHandler
 import com.example.flutter_battery.channel.EventChannelHandler
 import com.example.flutter_battery.channel.MethodChannelHandler
 import com.example.flutter_battery.core.BatteryMonitor
 import com.example.flutter_battery.core.NotificationHelper
 import com.example.iot.nativekit.IotNativeInitializer
+import com.example.push_notification.PushNotificationManager
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -18,63 +23,96 @@ import io.flutter.plugin.common.PluginRegistry
 class FlutterBatteryPlugin : FlutterPlugin, ActivityAware, PluginRegistry.RequestPermissionsResultListener {
     private lateinit var methodChannel: MethodChannel
     private lateinit var eventChannel: EventChannel
+    private lateinit var bleMethodChannel: MethodChannel
+    private lateinit var bleScanEventChannel: EventChannel
+    private lateinit var bleConnectionEventChannel: EventChannel
     private lateinit var applicationContext: Context
     private var activity: android.app.Activity? = null
-    
+
     // 核心组件
     private lateinit var batteryMonitor: BatteryMonitor
     private lateinit var notificationHelper: NotificationHelper
-    
+
+    // BLE
+    private lateinit var bleManager: BleManager
+
     // 通道处理器
     private lateinit var methodChannelHandler: MethodChannelHandler
     private lateinit var eventChannelHandler: EventChannelHandler
-    
+    private var bleScanHandler: BleScanEventChannelHandler? = null
+    private var bleConnectionHandler: BleConnectionEventChannelHandler? = null
+
     override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        val context = flutterPluginBinding.applicationContext
+        applicationContext = if (context is Application) context else context.applicationContext
+
         // 1. 初始化通道
         methodChannel = MethodChannel(flutterPluginBinding.binaryMessenger, "flutter_battery")
         eventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "flutter_battery/battery_stream")
-        applicationContext = flutterPluginBinding.applicationContext
-        
+
         // 2. 初始化核心组件
         batteryMonitor = BatteryMonitor(applicationContext)
         notificationHelper = NotificationHelper(applicationContext)
-        
+        bleManager = BleManager(applicationContext)
+
         // 3. 初始化通道处理器
         methodChannelHandler = MethodChannelHandler(
             applicationContext,
             methodChannel,
             batteryMonitor,
-            notificationHelper
+            notificationHelper,
+            PushNotificationManager,
+            bleManager
         )
-        
+
         eventChannelHandler = EventChannelHandler(
             applicationContext,
             eventChannel,
             batteryMonitor
         )
-        
+
         // 设置关联，让 MethodChannelHandler 可以访问 EventChannelHandler
         methodChannelHandler.setEventChannelHandler(eventChannelHandler)
-        
+
         // 4. 设置方法调用处理器
         methodChannel.setMethodCallHandler(methodChannelHandler)
+        eventChannel.setStreamHandler(eventChannelHandler)
 
-        // 5. 挂载 IoT 原生通道
+        // 5. BLE 通道
+        bleMethodChannel = MethodChannel(flutterPluginBinding.binaryMessenger, "flutter_battery/ble_methods")
+        bleScanEventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "flutter_battery/ble_scan_events")
+        bleConnectionEventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "flutter_battery/ble_connection_events")
+
+        bleScanHandler = BleScanEventChannelHandler(bleManager)
+        bleConnectionHandler = BleConnectionEventChannelHandler(bleManager)
+
+        bleMethodChannel.setMethodCallHandler(methodChannelHandler)
+        bleScanEventChannel.setStreamHandler(bleScanHandler)
+        bleConnectionEventChannel.setStreamHandler(bleConnectionHandler)
+
+        // 6. 挂载 IoT 原生通道
         IotNativeInitializer.attach(applicationContext, flutterPluginBinding.binaryMessenger)
-        
+
         // 权限结果由 ActivityAware 接口转发至 NotificationHelper 处理
     }
 
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
         // 释放资源
         methodChannel.setMethodCallHandler(null)
+        eventChannel.setStreamHandler(null)
+        bleMethodChannel.setMethodCallHandler(null)
+        bleScanEventChannel.setStreamHandler(null)
+        bleConnectionEventChannel.setStreamHandler(null)
+
         batteryMonitor.dispose()
         notificationHelper.dispose()
         methodChannelHandler.dispose()
         eventChannelHandler.dispose()
+        bleScanHandler = null
+        bleConnectionHandler = null
         IotNativeInitializer.detach()
     }
-    
+
     // ActivityAware接口实现
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
@@ -97,7 +135,7 @@ class FlutterBatteryPlugin : FlutterPlugin, ActivityAware, PluginRegistry.Reques
         activity = null
         methodChannelHandler.setActivity(null)
     }
-    
+
     // 权限请求结果回调
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray): Boolean {
         return notificationHelper.handleRequestPermissionsResult(requestCode, permissions, grantResults)

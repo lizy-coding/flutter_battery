@@ -446,7 +446,7 @@ class _BatteryGaugePainter extends CustomPainter {
     required String value,
   }) {
     final basePaint = Paint()
-      ..color = color.withOpacity(0.12)
+      ..color = color.withValues(alpha:  0.12)
       ..style = PaintingStyle.stroke
       ..strokeWidth = thickness;
     final arcPaint = Paint()
