@@ -159,9 +159,9 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
         batteryHealth: _batteryHealth,
         eventCount: _iotEvents.length,
         onRefresh: _refresh,
-        onOpenBatteryDetails: () => _openBatteryDetails(context),
-        onOpenIotControls: () => _openIotControls(context),
-        onOpenEventLog: () => _openEventLog(context),
+        onOpenBatteryDetails: _openBatteryDetails,
+        onOpenIotControls: _openIotControls,
+        onOpenEventLog: _openEventLog,
       ),
     );
   }
@@ -185,9 +185,9 @@ class DashboardPage extends StatelessWidget {
   final BatteryHealth? batteryHealth;
   final int eventCount;
   final Future<void> Function() onRefresh;
-  final VoidCallback onOpenBatteryDetails;
-  final VoidCallback onOpenIotControls;
-  final VoidCallback onOpenEventLog;
+  final void Function(BuildContext) onOpenBatteryDetails;
+  final void Function(BuildContext) onOpenIotControls;
+  final void Function(BuildContext) onOpenEventLog;
 
   @override
   Widget build(BuildContext context) {
@@ -257,7 +257,7 @@ class DashboardPage extends StatelessWidget {
                   title: const Text('Battery details'),
                   subtitle: const Text('Level, state, health, temperature, and manual refresh'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: onOpenBatteryDetails,
+                  onTap: () => onOpenBatteryDetails(context),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -265,7 +265,7 @@ class DashboardPage extends StatelessWidget {
                   title: const Text('IoT native controls'),
                   subtitle: const Text('Scan, connect, and sync via MethodChannel'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: onOpenIotControls,
+                  onTap: () => onOpenIotControls(context),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -273,7 +273,7 @@ class DashboardPage extends StatelessWidget {
                   title: const Text('Event stream log'),
                   subtitle: Text('$eventCount recent entries from iot/stream'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: onOpenEventLog,
+                  onTap: () => onOpenEventLog(context),
                 ),
               ],
             ),
@@ -284,7 +284,7 @@ class DashboardPage extends StatelessWidget {
   }
 }
 
-class BatteryGaugeCard extends StatelessWidget {
+class BatteryGaugeCard extends StatefulWidget {
   const BatteryGaugeCard({
     required this.batteryLevel,
     required this.batteryInfo,
@@ -295,6 +295,29 @@ class BatteryGaugeCard extends StatelessWidget {
   final int batteryLevel;
   final BatteryInfo? batteryInfo;
   final BatteryHealth? batteryHealth;
+
+  @override
+  State<BatteryGaugeCard> createState() => _BatteryGaugeCardState();
+}
+
+class _BatteryGaugeCardState extends State<BatteryGaugeCard> {
+  double _previousLevel = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _previousLevel = widget.batteryLevel.toDouble();
+  }
+
+  @override
+  void didUpdateWidget(covariant BatteryGaugeCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.batteryLevel != widget.batteryLevel) {
+      _previousLevel = oldWidget.batteryLevel.toDouble();
+    } else {
+      _previousLevel = widget.batteryLevel.toDouble();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -309,13 +332,23 @@ class BatteryGaugeCard extends StatelessWidget {
         const SizedBox(height: 12),
         SizedBox(
           height: 260,
-          child: CustomPaint(
-            painter: _BatteryGaugePainter(
-              level: batteryLevel,
-              info: batteryInfo,
-              health: batteryHealth,
-              colorScheme: theme.colorScheme,
+          child: TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 700),
+            curve: Curves.easeOutCubic,
+            tween: Tween<double>(
+              begin: _previousLevel,
+              end: widget.batteryLevel.toDouble(),
             ),
+            builder: (context, animatedLevel, _) {
+              return CustomPaint(
+                painter: _BatteryGaugePainter(
+                  level: animatedLevel,
+                  info: widget.batteryInfo,
+                  health: widget.batteryHealth,
+                  colorScheme: theme.colorScheme,
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -347,50 +380,56 @@ class _BatteryGaugePainter extends CustomPainter {
     required this.colorScheme,
   });
 
-  final int level;
+  final double level;
   final BatteryInfo? info;
   final BatteryHealth? health;
   final ColorScheme colorScheme;
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) {
+      return;
+    }
     final center = Offset(size.width / 2, size.height / 2);
-    final baseRadius = math.min(size.width, size.height) / 2 - 12;
+    final baseRadius = math.max(56.0, (math.min(size.width, size.height) / 2 - 12));
+    final middleRadius = math.max(40.0, baseRadius - 30);
+    final innerRadius = math.max(32.0, baseRadius - 60);
+    final levelRatio = _clamp01(level / 100);
     _drawRing(
       canvas,
       center,
       baseRadius,
       16,
-      level.clamp(0, 100) / 100,
+      levelRatio,
       colorScheme.primary,
       label: 'Level',
-      value: '$level%',
+      value: '${level.toStringAsFixed(0)}%',
     );
 
-    final tempValue = info?.temperature ?? 0;
-    final tempRatio = (tempValue / 60).clamp(0.0, 1.0);
+    final tempValue = info?.temperature;
+    final tempRatio = _clamp01(tempValue != null ? tempValue / 60 : 0);
     _drawRing(
       canvas,
       center,
-      baseRadius - 30,
+      middleRadius,
       12,
       tempRatio,
       Colors.orangeAccent,
       label: 'Temp',
-      value: info != null ? '${tempValue.toStringAsFixed(1)}°C' : '--',
+      value: tempValue != null ? '${tempValue.toStringAsFixed(1)}°C' : '--',
     );
 
-    final voltage = info?.voltage ?? 0;
-    final voltageRatio = ((voltage - 3.0) / 1.4).clamp(0.0, 1.0);
+    final voltage = info?.voltage;
+    final voltageRatio = _clamp01(voltage != null ? (voltage - 3.0) / 1.4 : 0);
     _drawRing(
       canvas,
       center,
-      baseRadius - 60,
+      innerRadius,
       10,
       voltageRatio,
       Colors.blueAccent,
       label: 'Volt',
-      value: info != null ? '${voltage.toStringAsFixed(2)}V' : '--',
+      value: info != null ? '${voltage?.toStringAsFixed(2)}V' : '--',
     );
 
     _drawCenterLabels(canvas, center);
@@ -449,6 +488,14 @@ class _BatteryGaugePainter extends CustomPainter {
     );
   }
 
+  double _clamp01(num value) {
+    final v = value.toDouble();
+    if (v.isNaN || !v.isFinite) return 0;
+    if (v < 0) return 0;
+    if (v > 1) return 1;
+    return v;
+  }
+
   void _drawCenterLabels(Canvas canvas, Offset center) {
     final state = info?.state.name ?? 'unknown';
     final charging = info?.isCharging == true ? 'Charging' : 'Idle';
@@ -457,7 +504,7 @@ class _BatteryGaugePainter extends CustomPainter {
 
     final levelPainter = TextPainter(
       text: TextSpan(
-        text: '$level%',
+        text: '${level.toStringAsFixed(0)}%',
         style: TextStyle(
           color: colorScheme.onSurface,
           fontSize: 32,
