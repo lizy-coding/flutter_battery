@@ -1,5 +1,6 @@
 import 'flutter_battery_platform_interface.dart';
 export 'battery_animation.dart';
+export 'peer_battery_service.dart';
 
 /// 电池状态枚举
 enum BatteryState {

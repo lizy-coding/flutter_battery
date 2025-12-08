@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_battery/flutter_battery.dart';
 
+import 'role_selection_page.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const FlutterBatteryExampleApp());
@@ -143,6 +145,12 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
     ));
   }
 
+  void _openPeerBatterySync(BuildContext context) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => const RoleSelectionPage(),
+    ));
+  }
+
   void _openEventLog(BuildContext context) {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => EventStreamPage(eventsListenable: _iotEventsListenable),
@@ -160,6 +168,7 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
         eventCount: _iotEvents.length,
         onRefresh: _refresh,
         onOpenBatteryDetails: _openBatteryDetails,
+        onOpenPeerBatterySync: _openPeerBatterySync,
         onOpenIotControls: _openIotControls,
         onOpenEventLog: _openEventLog,
       ),
@@ -175,6 +184,7 @@ class DashboardPage extends StatelessWidget {
     required this.eventCount,
     required this.onRefresh,
     required this.onOpenBatteryDetails,
+    required this.onOpenPeerBatterySync,
     required this.onOpenIotControls,
     required this.onOpenEventLog,
     super.key,
@@ -186,6 +196,7 @@ class DashboardPage extends StatelessWidget {
   final int eventCount;
   final Future<void> Function() onRefresh;
   final void Function(BuildContext) onOpenBatteryDetails;
+  final void Function(BuildContext) onOpenPeerBatterySync;
   final void Function(BuildContext) onOpenIotControls;
   final void Function(BuildContext) onOpenEventLog;
 
@@ -258,6 +269,14 @@ class DashboardPage extends StatelessWidget {
                   subtitle: const Text('Level, state, health, temperature, and manual refresh'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => onOpenBatteryDetails(context),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.hub_outlined),
+                  title: const Text('蓝牙电量同步'),
+                  subtitle: const Text('选择主/从机后进行电量互通'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => onOpenPeerBatterySync(context),
                 ),
                 const Divider(height: 1),
                 ListTile(

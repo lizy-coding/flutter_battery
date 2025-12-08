@@ -168,85 +168,69 @@ graph TB
 2. 电池状态变化时触发onReceive()
 3. 更新电池状态并通过MethodChannel回调通知Flutter
 
-## 项目结构
-
-### Flutter 层 (`lib` 目录)
-
-```
-lib/
-├── battery_animation.dart        # 电池动画组件实现
-├── flutter_battery.dart          # 插件主类，提供所有公共API
-├── flutter_battery_method_channel.dart  # 方法通道实现，处理与原生平台通信
-└── flutter_battery_platform_interface.dart  # 平台接口定义，确保跨平台一致性
-```
-
-### Android 层 (`android/src/main/kotlin` 目录)
-
-```
-android/src/main/kotlin/
-└── com/
-    └── example/
-        ├── flutter_battery/
-        │   ├── FlutterBatteryPlugin.kt      # 插件主类，注册方法/事件通道
-        │   ├── channel/
-        │   │   ├── EventChannelHandler.kt   # 事件通道处理，用于流式数据
-        │   │   └── MethodChannelHandler.kt  # 方法通道处理，用于请求/响应
-        │   └── core/
-        │       ├── BatteryMonitor.kt        # 电池监控核心实现
-        │       ├── NotificationHelper.kt    # 通知管理助手
-        │       └── TimerManager.kt          # 定时器管理
-        └── push_notification/
-            ├── PushNotificationManager.kt   # 推送通知管理（即时/延迟）
-            ├── receiver/
-            │   └── NotificationAlarmReceiver.kt  # 延迟通知接收器
-            └── util/
-                └── Constants.kt             # 常量定义
-```
-
-### 示例应用（`example` 目录）
-
-```
-example/
-├── lib/
-│   └── main.dart                    # 示例入口，演示查询与流监听
-├── pubspec.yaml                     # 依赖本插件（path: ../）
-└── analysis_options.yaml            # 示例分析规则
-```
-
-## 功能特性
-
-- 获取当前电池电量百分比和完整电池信息（电量、温度、电压、充电状态等）
-- 新增电池健康评估：实时推送健康状态、风险等级与推荐措施
-- 实时监听电池电量、电池信息及电池健康变化
-- 设置电池低电量阈值监控，支持系统通知或Flutter自定义UI
-- 支持定时或即时推送通知
-- 电池电量动画组件可视化展示
-- 电池性能优化建议、防抖动机制
-- IoT 原生桥接：模拟 BLE 设备扫描、连接、遥测与电池事件
-- 线程安全的资源管理和错误处理
-- 跨平台支持（Android）
-
-## 项目结构
+## 项目结构（最新）
 
 ```
 .
-├── lib/                       # Flutter 插件 API 与组件
-├── android/                   # Android 原生插件实现（含 IoT Jetpack 架构）
-├── example/                   # Flutter 示例工程（演示 Battery + IoT）
-├── integration/               # 预留集成测试
-├── scripts/                   # 自动化/脚本工具
-├── test/                      # Dart 单元测试
-├── IOT_UPGRADE_PLAN.md        # IoT 能力演进计划
-└── README.md                  # 当前文档
+├── lib/
+│   ├── flutter_battery.dart                  # 电池 API、配置与流封装
+│   ├── flutter_battery_platform_interface.dart
+│   ├── flutter_battery_method_channel.dart
+│   ├── flutter_bluetooth.dart                # BLE 门面（扫描/连接/写特征）
+│   ├── flutter_bluetooth_platform_interface.dart
+│   ├── flutter_bluetooth_method_channel.dart
+│   ├── peer_battery_service.dart             # Master/Slave 对等电池同步流
+│   └── battery_animation.dart                # 电池可视化组件
+├── android/src/main/kotlin/com/example/
+│   ├── flutter_battery/
+│   │   ├── FlutterBatteryPlugin.kt           # 注册电池/BLE/Peer/IoT 通道
+│   │   ├── core/                             # BatteryMonitor、NotificationHelper、TimerManager
+│   │   ├── channel/                          # MethodChannelHandler + battery/ble/peer 事件分发
+│   │   └── ble/                              # BleManager、GattServerManager、GattClientManager
+│   ├── iot/nativekit/                        # Channels、NativeViewModel、仓库与 SyncService
+│   └── push_notification/                    # PushNotificationManager 与闹钟接收器
+├── example/lib/                              # Dashboard、电池详情、事件日志、角色选择/主从页
+├── integration/channel/contracts/            # 方法/事件通道契约
+├── scripts/bootstrap_iot.sh                  # 集成目录初始化脚本
+└── test/                                     # Dart 单元测试
 ```
 
-核心目录说明：
+- `lib/`：`FlutterBattery` 汇总配置/回调/监听，`FlutterBluetooth` 暴露 BLE 能力，`peer_battery_service.dart` 提供对等电池同步流，附带电池动画组件。
+- `android/flutter_battery/core`：`BatteryMonitor` 读取电量/健康并调度监听，`NotificationHelper` 处理通知权限与展示，`TimerManager` 管理周期任务。
+- `android/flutter_battery/channel`：`MethodChannelHandler` 统一处理电池、BLE、Peer 方法调用；`EventChannelHandler`/`Ble*EventChannelHandler`/`PeerEventChannelHandler` 推送事件。
+- `android/flutter_battery/ble`：`BleManager` 扫描/连接/写特征，`GattServerManager`(slave)/`GattClientManager`(master) 同步本地与远端电池并上报 `PeerState`。
+- `android/iot/nativekit`：`Channels` 挂载 `iot/native` & `iot/stream`，`NativeViewModel` 聚合 Telemetry/Power/BLE 仓库，`SyncService` 后台推送遥测。
+- `example/lib`：仪表盘首页、事件日志、电池详情以及 master/slave 角色切换演示页。
 
-- `lib/`：对外公开的 `FlutterBattery` API、平台接口定义以及电池动画组件。
-- `android/`：`FlutterBatteryPlugin`、电池监控核心 `BatteryMonitor`、通知工具、`iot/nativekit` Jetpack 架构（domain/data/presentation/service/platform）。
-- `example/`：最小可运行示例，展示如何调用电池 APIs 以及通过 `MethodChannel('iot/native')` 与 IoT 原生层交互。
-- `integration/`：保留用于未来的集成/端到端测试。
-- `scripts/`：脚本、自动化工具及工程初始化模板。
+## 功能特性
+
+- 获取当前电池电量百分比、完整电池信息与健康状态（风险等级、建议等）
+- 实时监听电池电量/信息/健康变化，支持防抖与可配置推送间隔
+- 设置电池低电量阈值监控，支持系统通知或 Flutter 自定义 UI
+- BLE 扫描、连接、特征写入以及连接事件流（`flutter_bluetooth`）
+- 对等电池同步：GATT master/slave 模式推送 `peer_events`（本地/远端电量与连接态）
+- 支持定时或即时推送通知
+- 电池电量动画组件可视化展示
+- 电池性能优化建议、防抖动机制
+- IoT 原生桥接：模拟设备扫描、连接、遥测与电池事件（`iot/native` + `iot/stream`）
+- 线程安全的资源管理和错误处理，跨平台支持（Android）
+
+## 功能模块分区
+
+- **Battery 核心**：`FlutterBattery` + `BatteryMonitor`，覆盖主动查询、电量/信息/健康推送、低电量监测、优化建议与通知调度。
+- **BLE 设备管理**：`FlutterBluetooth` -> `BleManager`，支持按服务过滤的扫描、连接、特征写入与连接事件流。
+- **Peer 电池同步**：`PeerBatteryService` + `GattServerManager`/`GattClientManager`，在 master/slave 模式下同步本地与远端电池并推送对等状态。
+- **通知体系**：`NotificationHelper`、`PushNotificationManager` 负责权限处理、即时/延迟通知与前台提醒。
+- **IoT 演示层**：`iot/nativekit` 将 Telemetry/Power/BLE 仓库通过 `iot/native` & `iot/stream` 暴露给示例应用。
+- **示例与 UI**：`example/lib` 内置仪表盘、事件流日志、电池详情和角色切换页面，配合 `BatteryAnimation` 展示。
+
+## 数据流流转方案
+
+- **电池主动查询（MethodChannel `flutter_battery`）**：`FlutterBattery.*` -> `FlutterBatteryPlatform` -> `MethodChannelHandler` -> `BatteryMonitor` -> Android BatteryManager -> 结果返回 Flutter。
+- **电池推送（EventChannel `flutter_battery/battery_stream`）**：`EventChannelHandler` 通过 `TimerManager` 轮询；默认推送 `{batteryLevel,timestamp}`，开启 info/health 后携带 `type == BATTERY_INFO/BATTERY_HEALTH` 的完整字段，频率由 `setPushInterval` / `setBatteryInfoPush` / `setBatteryHealthPush` 控制。
+- **BLE 扫描/连接（`flutter_battery/ble_methods`）**：Flutter 调用 `startScan/connect/writeCharacteristic` -> `MethodChannelHandler` -> `BleManager`；扫描结果经 `ble_scan_events` 推送设备列表，连接状态经 `ble_connection_events` 推送。
+- **对等电池同步（`flutter_battery/peer_methods` + `peer_events`）**：`startSlaveMode` 启动 GATT Server 广播本地电池；`startMasterMode/masterConnectToDevice` 启动 GATT Client 读取远端电池并写入本地电量；`PeerEventChannelHandler` 将 `{role,localBattery,remoteBattery,connected}` 推送给 Flutter `peerBatteryStream`。
+- **IoT 演示流（`iot/native` -> `iot/stream`）**：示例调用 MethodChannel 控制扫描/连接/SyncService；`Channels` 订阅 `NativeViewModel` 的 devices/telemetry/battery Flow，并以 `{type: devices|telemetry|battery, payload: ...}` 形式推送到 `EventChannel('iot/stream')`。
 
 ## 原生通道与接口说明
 
@@ -275,6 +259,36 @@ example/
 - `type == "BATTERY_INFO"`：携带 `BatteryInfo` 字段
 - `type == "BATTERY_HEALTH"`：携带 `BatteryHealth` 字段（风险等级、建议列表等）
 - 所有事件均由 `EventChannelHandler` 管理，支持 `setPushInterval` 和 `setBatteryInfoPush / setBatteryHealthPush` 控制频率。
+
+### `flutter_battery/ble_methods` MethodChannel （BLE 能力）
+
+| 方法 | 说明 | 参数 | 返回 |
+| --- | --- | --- | --- |
+| `isBleAvailable()` | 检查设备是否支持 BLE | - | `bool` |
+| `isBleEnabled()` | 检查 BLE 是否已开启 | - | `bool` |
+| `startScan()` / `stopScan()` | 开始/停止扫描，支持 service UUID 过滤 | `serviceUuid?` | `void` |
+| `connect()` / `disconnect()` | 连接或断开指定设备 | `deviceId, autoConnect?` / `deviceId?` | `void` |
+| `writeCharacteristic()` | 写特征值（默认带响应） | `deviceId,serviceUuid,characteristicUuid,value[],withResponse` | `bool` |
+| `subscribeToCharacteristic()` / `unsubscribeFromCharacteristic()` | Dart 端 API 已暴露，Android 端暂未实现订阅逻辑 | 同 write 参数 | `Stream<List<int>>` / `void` |
+
+#### `flutter_battery/ble_scan_events` & `flutter_battery/ble_connection_events` EventChannel
+
+- `ble_scan_events`：推送扫描到的设备列表，payload `[ {id,name,rssi} ]`。
+- `ble_connection_events`：推送连接状态，payload `{state: connected|connecting|disconnecting|disconnected, deviceId, error?}`。
+
+### `flutter_battery/peer_methods` MethodChannel （对等电池同步）
+
+| 方法 | 说明 | 参数 | 返回 |
+| --- | --- | --- | --- |
+| `startMasterMode()` | 启动 GATT Client 并扫描 slave | - | `void` |
+| `startSlaveMode()` | 启动 GATT Server 广播本地电池 | - | `void` |
+| `stopMasterMode()` / `stopSlaveMode()` | 停止 master/slave 模式 | - | `void` |
+| `stopAllPeerModes()` | 同时关闭 master 与 slave | - | `void` |
+| `masterConnectToDevice()` | master 连接指定 slave 设备 | `deviceId` | `void` |
+
+#### `flutter_battery/peer_events` EventChannel
+
+- payload：`{role: master|slave, localBattery: int, remoteBattery: int?, connected: bool}`。
 
 ### `iot/native` MethodChannel （IoT 模块）
 
