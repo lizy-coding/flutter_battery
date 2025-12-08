@@ -8,8 +8,11 @@ import com.example.flutter_battery.channel.BleConnectionEventChannelHandler
 import com.example.flutter_battery.channel.BleScanEventChannelHandler
 import com.example.flutter_battery.channel.EventChannelHandler
 import com.example.flutter_battery.channel.MethodChannelHandler
+import com.example.flutter_battery.channel.PeerEventChannelHandler
 import com.example.flutter_battery.core.BatteryMonitor
 import com.example.flutter_battery.core.NotificationHelper
+import com.example.flutter_battery.ble.GattClientManager
+import com.example.flutter_battery.ble.GattServerManager
 import com.example.iot.nativekit.IotNativeInitializer
 import com.example.push_notification.PushNotificationManager
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -26,6 +29,8 @@ class FlutterBatteryPlugin : FlutterPlugin, ActivityAware, PluginRegistry.Reques
     private lateinit var bleMethodChannel: MethodChannel
     private lateinit var bleScanEventChannel: EventChannel
     private lateinit var bleConnectionEventChannel: EventChannel
+    private lateinit var peerMethodChannel: MethodChannel
+    private lateinit var peerEventChannel: EventChannel
     private lateinit var applicationContext: Context
     private var activity: android.app.Activity? = null
 
@@ -35,12 +40,15 @@ class FlutterBatteryPlugin : FlutterPlugin, ActivityAware, PluginRegistry.Reques
 
     // BLE
     private lateinit var bleManager: BleManager
+    private lateinit var gattServerManager: GattServerManager
+    private lateinit var gattClientManager: GattClientManager
 
     // 通道处理器
     private lateinit var methodChannelHandler: MethodChannelHandler
     private lateinit var eventChannelHandler: EventChannelHandler
     private var bleScanHandler: BleScanEventChannelHandler? = null
     private var bleConnectionHandler: BleConnectionEventChannelHandler? = null
+    private var peerEventHandler: PeerEventChannelHandler? = null
 
     override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         val context = flutterPluginBinding.applicationContext
@@ -54,6 +62,8 @@ class FlutterBatteryPlugin : FlutterPlugin, ActivityAware, PluginRegistry.Reques
         batteryMonitor = BatteryMonitor(applicationContext)
         notificationHelper = NotificationHelper(applicationContext)
         bleManager = BleManager(applicationContext)
+        gattServerManager = GattServerManager(applicationContext, batteryMonitor)
+        gattClientManager = GattClientManager(applicationContext, batteryMonitor, bleManager)
 
         // 3. 初始化通道处理器
         methodChannelHandler = MethodChannelHandler(
@@ -62,7 +72,9 @@ class FlutterBatteryPlugin : FlutterPlugin, ActivityAware, PluginRegistry.Reques
             batteryMonitor,
             notificationHelper,
             PushNotificationManager,
-            bleManager
+            bleManager,
+            gattServerManager,
+            gattClientManager
         )
 
         eventChannelHandler = EventChannelHandler(
@@ -82,13 +94,19 @@ class FlutterBatteryPlugin : FlutterPlugin, ActivityAware, PluginRegistry.Reques
         bleMethodChannel = MethodChannel(flutterPluginBinding.binaryMessenger, "flutter_battery/ble_methods")
         bleScanEventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "flutter_battery/ble_scan_events")
         bleConnectionEventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "flutter_battery/ble_connection_events")
+        peerMethodChannel = MethodChannel(flutterPluginBinding.binaryMessenger, "flutter_battery/peer_methods")
+        peerEventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "flutter_battery/peer_events")
 
         bleScanHandler = BleScanEventChannelHandler(bleManager)
         bleConnectionHandler = BleConnectionEventChannelHandler(bleManager)
+        peerEventHandler = PeerEventChannelHandler()
 
         bleMethodChannel.setMethodCallHandler(methodChannelHandler)
         bleScanEventChannel.setStreamHandler(bleScanHandler)
         bleConnectionEventChannel.setStreamHandler(bleConnectionHandler)
+        peerMethodChannel.setMethodCallHandler(methodChannelHandler)
+        peerEventChannel.setStreamHandler(peerEventHandler)
+        peerEventHandler?.let { methodChannelHandler.setPeerEventChannelHandler(it) }
 
         // 6. 挂载 IoT 原生通道
         IotNativeInitializer.attach(applicationContext, flutterPluginBinding.binaryMessenger)
@@ -103,6 +121,8 @@ class FlutterBatteryPlugin : FlutterPlugin, ActivityAware, PluginRegistry.Reques
         bleMethodChannel.setMethodCallHandler(null)
         bleScanEventChannel.setStreamHandler(null)
         bleConnectionEventChannel.setStreamHandler(null)
+        peerMethodChannel.setMethodCallHandler(null)
+        peerEventChannel.setStreamHandler(null)
 
         batteryMonitor.dispose()
         notificationHelper.dispose()
@@ -110,6 +130,7 @@ class FlutterBatteryPlugin : FlutterPlugin, ActivityAware, PluginRegistry.Reques
         eventChannelHandler.dispose()
         bleScanHandler = null
         bleConnectionHandler = null
+        peerEventHandler = null
         IotNativeInitializer.detach()
     }
 

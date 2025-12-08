@@ -1,6 +1,14 @@
 package com.example.flutter_battery.channel
 
 import android.content.Context
+import android.os.Build
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import com.example.flutter_battery.ble.BleConstants
+import com.example.flutter_battery.ble.GattClientManager
+import com.example.flutter_battery.ble.GattServerManager
+import com.example.flutter_battery.ble.PeerState
+import com.example.flutter_battery.ble.PeerStateListener
 import com.example.flutter_battery.core.BatteryMonitor
 import com.example.flutter_battery.core.NotificationHelper
 import com.example.flutter_battery.ble.BleManager
@@ -20,13 +28,23 @@ class MethodChannelHandler(
     private val batteryMonitor: BatteryMonitor,
     private val notificationHelper: NotificationHelper,
     @Suppress("unused") private val pushNotificationManager: PushNotificationManager,
-    private val bleManager: BleManager
-) : MethodCallHandler {
+    private val bleManager: BleManager,
+    private val gattServerManager: GattServerManager,
+    private val gattClientManager: GattClientManager
+) : MethodCallHandler, PeerStateListener {
 
     private var activity: android.app.Activity? = null
 
     // 事件通道处理器
     private var eventChannelHandler: EventChannelHandler? = null
+    private var peerEventChannelHandler: PeerEventChannelHandler? = null
+
+    private val blePermissions = listOfNotNull(
+        android.Manifest.permission.BLUETOOTH_SCAN,
+        android.Manifest.permission.BLUETOOTH_CONNECT,
+        android.Manifest.permission.BLUETOOTH_ADVERTISE,
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) android.Manifest.permission.ACCESS_FINE_LOCATION else null
+    )
 
     /**
      * 设置当前活动
@@ -40,6 +58,10 @@ class MethodChannelHandler(
      */
     fun setEventChannelHandler(handler: EventChannelHandler) {
         eventChannelHandler = handler
+    }
+
+    fun setPeerEventChannelHandler(handler: PeerEventChannelHandler) {
+        peerEventChannelHandler = handler
     }
 
     /**
@@ -68,6 +90,9 @@ class MethodChannelHandler(
         batteryMonitor.setOnBatteryHealthChangeCallback { batteryHealth ->
             channel.invokeMethod("onBatteryHealthChanged", batteryHealth)
         }
+
+        gattServerManager.setPeerStateListener(this)
+        gattClientManager.setPeerStateListener(this)
     }
 
     /**
@@ -79,6 +104,7 @@ class MethodChannelHandler(
                 "isBleAvailable" -> result.success(bleManager.isBleAvailable())
                 "isBleEnabled" -> result.success(bleManager.isBleEnabled())
                 "startScan" -> {
+                    if (!ensureBlePermissions(result)) return
                     val args = call.arguments as? Map<*, *>
                     val serviceUuid = args?.get("serviceUuid") as? String
                     bleManager.startScan(serviceUuid)
@@ -89,6 +115,7 @@ class MethodChannelHandler(
                     result.success(null)
                 }
                 "connect" -> {
+                    if (!ensureBlePermissions(result)) return
                     val args = call.arguments as? Map<*, *>
                     val deviceId = args?.get("deviceId") as? String
                     val autoConnect = (args?.get("autoConnect") as? Boolean) ?: false
@@ -127,6 +154,41 @@ class MethodChannelHandler(
                         )
                         result.success(success)
                     }
+                }
+                "startSlaveMode" -> {
+                    if (!ensureBlePermissions(result)) return
+                    gattClientManager.stopMasterMode()
+                    gattServerManager.startSlaveMode()
+                    result.success(null)
+                }
+                "stopSlaveMode" -> {
+                    gattServerManager.stopSlaveMode()
+                    result.success(null)
+                }
+                "startMasterMode" -> {
+                    if (!ensureBlePermissions(result)) return
+                    gattServerManager.stopSlaveMode()
+                    gattClientManager.startMasterMode()
+                    result.success(null)
+                }
+                "stopMasterMode" -> {
+                    gattClientManager.stopMasterMode()
+                    result.success(null)
+                }
+                "masterConnectToDevice" -> {
+                    val args = call.arguments as? Map<*, *>
+                    val deviceId = args?.get("deviceId") as? String
+                    if (deviceId.isNullOrEmpty()) {
+                        result.error("INVALID_ARGS", "deviceId is required", null)
+                    } else {
+                        gattClientManager.connectToSlave(deviceId)
+                        result.success(null)
+                    }
+                }
+                "stopAllPeerModes" -> {
+                    gattClientManager.stopMasterMode()
+                    gattServerManager.stopSlaveMode()
+                    result.success(null)
                 }
                 "getPlatformVersion" -> {
                     result.success("Android ${android.os.Build.VERSION.RELEASE}")
@@ -317,6 +379,42 @@ class MethodChannelHandler(
         synchronized(this) {
             activity = null
             eventChannelHandler = null
+            peerEventChannelHandler = null
+            gattClientManager.stopMasterMode()
+            gattServerManager.stopSlaveMode()
         }
+    }
+
+    override fun onPeerState(state: PeerState) {
+        peerEventChannelHandler?.sendPeerState(state)
+    }
+
+    private fun ensureBlePermissions(result: Result): Boolean {
+        val missing = blePermissions.filter {
+            ContextCompat.checkSelfPermission(context, it) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isEmpty()) {
+            return true
+        }
+        val currentActivity = activity
+        if (currentActivity != null) {
+            ActivityCompat.requestPermissions(currentActivity, missing.toTypedArray(), BLE_PERMISSION_REQUEST_CODE)
+            result.error(
+                "PERMISSION_REQUIRED",
+                "已发起蓝牙权限申请，请在系统弹窗中授权后重试。",
+                null
+            )
+        } else {
+            result.error(
+                "PERMISSION_DENIED",
+                "缺少蓝牙权限，且当前无活动用于请求权限。",
+                null
+            )
+        }
+        return false
+    }
+
+    companion object {
+        private const val BLE_PERMISSION_REQUEST_CODE = 0xB10
     }
 }

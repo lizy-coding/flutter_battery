@@ -152,8 +152,13 @@ class BleManager(private val context: Context) {
         }
         val settings = settingsBuilder.build()
 
-        scanning = true
-        scanner.startScan(filters, settings, scanCallback)
+        try {
+            scanning = true
+            scanner.startScan(filters, settings, scanCallback)
+        } catch (e: SecurityException) {
+            scanning = false
+            scanListener?.onScanError("Missing Bluetooth scan permission: ${e.message}")
+        }
     }
 
     fun stopScan() {
