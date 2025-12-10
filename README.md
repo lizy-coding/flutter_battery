@@ -2,7 +2,13 @@
 
 Flutter插件，用于监控设备电池电量并在电量低于特定阈值时发送通知，同时支持实时监听电池电量变化和获取完整电池信息。
 
-![example](https://github.com/lizy-coding/flutter_battery/blob/master/example/az_recorder_20250518_091407.gif)
+
+## 系统监控电量
+![example](https://github.com/lizy-coding/flutter_battery/blob/master/example/gif/battery-ezgif.gif)
+
+
+## 蓝牙查询电量
+![example](https://github.com/lizy-coding/flutter_battery/blob/master/example/gif/ble-ezgif.gif)
 
 
 ## 版本信息
