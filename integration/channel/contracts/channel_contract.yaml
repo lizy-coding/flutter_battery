@@ -23,3 +23,21 @@ channels:
       deviceId: string?
       timestamp: int
       data: map
+  peer_method:
+    name: flutter_battery/peer_methods
+    methods:
+      - id: startMasterMode
+      - id: startSlaveMode
+      - id: stopMasterMode
+      - id: stopSlaveMode
+      - id: stopAllPeerModes
+      - id: masterConnectToDevice
+        args:
+          deviceId: string
+  peer_event:
+    name: flutter_battery/peer_events
+    payload:
+      role: enum(master|slave)
+      localBattery: int
+      remoteBattery: int?
+      connected: bool

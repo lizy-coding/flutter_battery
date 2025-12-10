@@ -75,7 +75,7 @@ class SyncService : Service() {
             Intent(),
             PendingIntent.FLAG_IMMUTABLE
         )
-        val label = applicationInfo.loadLabel(packageManager)?.toString() ?: "IoT Sync"
+        val label = applicationInfo.loadLabel(packageManager).toString()
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(label)
             .setContentText("IoT Sync Service running")
@@ -86,7 +86,7 @@ class SyncService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val channel = NotificationChannel(
             CHANNEL_ID,
             "IoT Sync",

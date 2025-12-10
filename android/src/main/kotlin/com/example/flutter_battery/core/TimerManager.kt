@@ -63,7 +63,7 @@ class TimerManager {
                 stop()
                 
                 timer = Timer()
-                timer?.scheduleAtFixedRate(object : TimerTask() {
+                timer?.schedule(object : TimerTask() {
                     override fun run() {
                         Handler(Looper.getMainLooper()).post {
                             try {
