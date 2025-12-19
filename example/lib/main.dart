@@ -50,7 +50,6 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
   @override
   void initState() {
     super.initState();
-    _bootstrapBattery();
     _listenToIotEvents();
   }
 
@@ -192,6 +191,7 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
             batteryHealth: _batteryHealth,
             eventCount: _iotEvents.length,
             onRefresh: _refresh,
+            onBootstrap: _bootstrapBattery,
             onOpenBatteryDetails: () => _pushNamed(AppRoutes.batteryDetails),
             onOpenLowBatteryAlerts: () => _pushNamed(AppRoutes.lowBattery),
             onOpenPeerBatterySync: () => _pushNamed(AppRoutes.peerSelection),
