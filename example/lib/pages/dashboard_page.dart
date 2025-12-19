@@ -11,6 +11,7 @@ bool _startupFirstBuildLogged = false;
 bool _startupFirstFrameLogged = false;
 bool _bootstrapScheduled = false;
 bool _bootstrapRan = false;
+bool _splashHiddenOnce = false;
 
 /// Landing screen showing battery overview and entry points to feature demos.
 class DashboardPage extends StatefulWidget {
@@ -74,6 +75,11 @@ class _DashboardPageState extends State<DashboardPage> {
         _startupFirstFrameLogged = true;
         StartupTrace.markFirstFrame();
         PerfLabChannel.logMarker('flutter_first_frame');
+        if (!_splashHiddenOnce) {
+          _splashHiddenOnce = true;
+          PerfLabChannel.hideSplash();
+        }
+        PerfLabChannel.warmupIot();
         if (kReleaseMode) return;
         Future.microtask(() async {
           final timeline = await PerfLabChannel.getStartupTimeline();

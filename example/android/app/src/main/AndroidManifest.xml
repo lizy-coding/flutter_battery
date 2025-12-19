@@ -2,7 +2,8 @@
     <application
         android:label="flutter_battery_example"
         android:name=".MyApplication"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@style/LaunchTheme">
         <activity
             android:name=".MainActivity"
             android:exported="true"

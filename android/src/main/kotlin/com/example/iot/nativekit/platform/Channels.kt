@@ -2,8 +2,8 @@ package com.example.iot.nativekit.platform
 
 import android.content.Context
 import android.util.Log
-import com.example.iot.nativekit.presentation.NativeViewModel
 import com.example.iot.nativekit.domain.model.toMap
+import com.example.iot.nativekit.presentation.NativeViewModel
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -27,8 +27,7 @@ import kotlinx.coroutines.plus
  */
 class Channels(
     private val appContext: Context,
-    messenger: BinaryMessenger,
-    private val viewModel: NativeViewModel
+    messenger: BinaryMessenger
 ) : MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
 
     private val methodChannel = MethodChannel(messenger, METHOD_CHANNEL)
@@ -38,20 +37,32 @@ class Channels(
     private var telemetryJob: Job? = null
     private var batteryJob: Job? = null
     private var sink: SafeEventSink? = null
+    @Volatile
+    private var viewModel: NativeViewModel? = null
 
     init {
         methodChannel.setMethodCallHandler(this)
         eventChannel.setStreamHandler(this)
     }
 
+    fun setViewModel(vm: NativeViewModel) {
+        viewModel = vm
+        restartStreams()
+    }
+
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+        val vm = viewModel
+        if (vm == null) {
+            result.error("not_ready", "IoT warmup not completed", null)
+            return
+        }
         when (call.method) {
             "scanDevices" -> {
-                viewModel.startScan()
+                vm.startScan()
                 result.success(null)
             }
             "stopScan" -> {
-                viewModel.stopScan()
+                vm.stopScan()
                 result.success(null)
             }
             "connect" -> {
@@ -59,20 +70,20 @@ class Channels(
                 if (deviceId.isNullOrBlank()) {
                     result.error("invalid_args", "deviceId is required", null)
                 } else {
-                    viewModel.connect(deviceId)
+                    vm.connect(deviceId)
                     result.success(null)
                 }
             }
             "disconnect" -> {
-                viewModel.disconnect()
+                vm.disconnect()
                 result.success(null)
             }
             "startSync" -> {
-                viewModel.startSyncService(appContext)
+                vm.startSyncService(appContext)
                 result.success(null)
             }
             "stopSync" -> {
-                viewModel.stopSyncService(appContext)
+                vm.stopSyncService(appContext)
                 result.success(null)
             }
             else -> result.notImplemented()
@@ -82,31 +93,12 @@ class Channels(
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
         onCancel(null)
         sink = SafeEventSink(events)
-        devicesJob = scope.launch {
-            viewModel.devicesFlow.collectLatest { devices ->
-                sink?.success(mapOf("type" to "devices", "payload" to devices.map { it.toMap() }))
-            }
-        }
-        telemetryJob = scope.launch {
-            viewModel.telemetryFlow.collectLatest { telemetry ->
-                sink?.success(mapOf("type" to "telemetry", "payload" to telemetry.toMap()))
-            }
-        }
-        batteryJob = scope.launch {
-            viewModel.batteryFlow.collectLatest { pct ->
-                sink?.success(mapOf("type" to "battery", "payload" to mapOf("value" to pct)))
-            }
-        }
+        restartStreams()
     }
 
     override fun onCancel(arguments: Any?) {
+        cancelJobs()
         sink = null
-        devicesJob?.cancel()
-        telemetryJob?.cancel()
-        batteryJob?.cancel()
-        devicesJob = null
-        telemetryJob = null
-        batteryJob = null
     }
 
     fun dispose() {
@@ -114,6 +106,36 @@ class Channels(
         methodChannel.setMethodCallHandler(null)
         eventChannel.setStreamHandler(null)
         scope.cancel()
+    }
+
+    private fun restartStreams() {
+        cancelJobs()
+        val vm = viewModel ?: return
+        val targetSink = sink ?: return
+        devicesJob = scope.launch {
+            vm.devicesFlow.collectLatest { devices ->
+                targetSink.success(mapOf("type" to "devices", "payload" to devices.map { it.toMap() }))
+            }
+        }
+        telemetryJob = scope.launch {
+            vm.telemetryFlow.collectLatest { telemetry ->
+                targetSink.success(mapOf("type" to "telemetry", "payload" to telemetry.toMap()))
+            }
+        }
+        batteryJob = scope.launch {
+            vm.batteryFlow.collectLatest { pct ->
+                targetSink.success(mapOf("type" to "battery", "payload" to mapOf("value" to pct)))
+            }
+        }
+    }
+
+    private fun cancelJobs() {
+        devicesJob?.cancel()
+        telemetryJob?.cancel()
+        batteryJob?.cancel()
+        devicesJob = null
+        telemetryJob = null
+        batteryJob = null
     }
 
     private class SafeEventSink(

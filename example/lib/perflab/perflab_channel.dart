@@ -18,6 +18,19 @@ class PerfLabChannel {
     } catch (_) {}
   }
 
+  static Future<void> warmupIot() async {
+    if (kReleaseMode) return;
+    try {
+      await _ch.invokeMethod('iotWarmup');
+    } catch (_) {}
+  }
+
+  static Future<void> hideSplash() async {
+    try {
+      await _ch.invokeMethod('hideSplash');
+    } catch (_) {}
+  }
+
   static Future<Map<String, dynamic>> getStartupTimeline() async {
     if (kReleaseMode) return <String, dynamic>{};
     final res = await _ch.invokeMethod('getStartupTimeline');
