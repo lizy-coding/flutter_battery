@@ -11,9 +11,12 @@ import 'pages/iot_controls_page.dart';
 import 'pages/low_battery_notification_page.dart';
 import 'role_selection_page.dart';
 import 'routes.dart';
+import 'startup_trace.dart';
 
 void main() {
+  StartupTrace.start();
   WidgetsFlutterBinding.ensureInitialized();
+  StartupTrace.markRunApp();
   runApp(const FlutterBatteryExampleApp());
 }
 
@@ -44,6 +47,7 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
   @override
   void initState() {
     super.initState();
+    StartupTrace.scheduleFirstFrameHook();
     _bootstrapBattery();
     _listenToIotEvents();
   }
