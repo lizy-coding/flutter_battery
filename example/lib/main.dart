@@ -9,11 +9,17 @@ import 'pages/dashboard_page.dart';
 import 'pages/event_stream_page.dart';
 import 'pages/iot_controls_page.dart';
 import 'pages/low_battery_notification_page.dart';
+import 'perflab/perflab_channel.dart';
 import 'role_selection_page.dart';
 import 'routes.dart';
+import 'startup_trace.dart';
 
 void main() {
+  StartupTrace.start();
   WidgetsFlutterBinding.ensureInitialized();
+  PerfLabChannel.logMarker('flutter_main_t0');
+  StartupTrace.markRunApp();
+  PerfLabChannel.logMarker('flutter_runApp');
   runApp(const FlutterBatteryExampleApp());
 }
 
@@ -44,7 +50,6 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
   @override
   void initState() {
     super.initState();
-    _bootstrapBattery();
     _listenToIotEvents();
   }
 
@@ -186,6 +191,7 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
             batteryHealth: _batteryHealth,
             eventCount: _iotEvents.length,
             onRefresh: _refresh,
+            onBootstrap: _bootstrapBattery,
             onOpenBatteryDetails: () => _pushNamed(AppRoutes.batteryDetails),
             onOpenLowBatteryAlerts: () => _pushNamed(AppRoutes.lowBattery),
             onOpenPeerBatterySync: () => _pushNamed(AppRoutes.peerSelection),

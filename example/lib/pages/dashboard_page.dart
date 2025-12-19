@@ -1,16 +1,27 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_battery/flutter_battery.dart';
 
+import '../perflab/perflab_channel.dart';
+import '../startup_trace.dart';
+
+bool _startupFirstBuildLogged = false;
+bool _startupFirstFrameLogged = false;
+bool _bootstrapScheduled = false;
+bool _bootstrapRan = false;
+bool _splashHiddenOnce = false;
+
 /// Landing screen showing battery overview and entry points to feature demos.
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({
     required this.batteryLevel,
     required this.batteryInfo,
     required this.batteryHealth,
     required this.eventCount,
     required this.onRefresh,
+    required this.onBootstrap,
     required this.onOpenBatteryDetails,
     required this.onOpenLowBatteryAlerts,
     required this.onOpenPeerBatterySync,
@@ -24,6 +35,7 @@ class DashboardPage extends StatelessWidget {
   final BatteryHealth? batteryHealth;
   final int eventCount;
   final Future<void> Function() onRefresh;
+  final VoidCallback onBootstrap;
   final VoidCallback onOpenBatteryDetails;
   final VoidCallback onOpenLowBatteryAlerts;
   final VoidCallback onOpenPeerBatterySync;
@@ -31,14 +43,57 @@ class DashboardPage extends StatelessWidget {
   final VoidCallback onOpenEventLog;
 
   @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  @override
+  void initState() {
+    super.initState();
+    if (!_bootstrapScheduled) {
+      _bootstrapScheduled = true;
+      StartupTrace.mark('bootstrapBattery_scheduled');
+      final bootstrap = widget.onBootstrap;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_bootstrapRan) return;
+        _bootstrapRan = true;
+        StartupTrace.mark('bootstrapBattery_start');
+        bootstrap();
+        StartupTrace.mark('bootstrapBattery_end');
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isCharging = batteryInfo?.isCharging ?? false;
+    if (!_startupFirstBuildLogged) {
+      _startupFirstBuildLogged = true;
+      StartupTrace.markFirstBuild();
+      PerfLabChannel.logMarker('flutter_first_build');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_startupFirstFrameLogged) return;
+        _startupFirstFrameLogged = true;
+        StartupTrace.markFirstFrame();
+        PerfLabChannel.logMarker('flutter_first_frame');
+        if (!_splashHiddenOnce) {
+          _splashHiddenOnce = true;
+          PerfLabChannel.hideSplash();
+        }
+        PerfLabChannel.warmupIot();
+        if (kReleaseMode) return;
+        Future.microtask(() async {
+          final timeline = await PerfLabChannel.getStartupTimeline();
+          debugPrint('[PerfLabTimeline] $timeline');
+        });
+      });
+    }
+    final isCharging = widget.batteryInfo?.isCharging ?? false;
     return Scaffold(
       appBar: AppBar(
         title: const Text('flutter_battery overview'),
         actions: [
           IconButton(
-            onPressed: onRefresh,
+            onPressed: widget.onRefresh,
             tooltip: 'Refresh battery info',
             icon: const Icon(Icons.refresh),
           ),
@@ -54,9 +109,9 @@ class DashboardPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   BatteryGaugeCard(
-                    batteryLevel: batteryLevel,
-                    batteryInfo: batteryInfo,
-                    batteryHealth: batteryHealth,
+                    batteryLevel: widget.batteryLevel,
+                    batteryInfo: widget.batteryInfo,
+                    batteryHealth: widget.batteryHealth,
                   ),
                   const SizedBox(height: 12),
                   Wrap(
@@ -69,19 +124,19 @@ class DashboardPage extends StatelessWidget {
                       ),
                       _MetricChip(
                         icon: Icons.thermostat_auto_outlined,
-                        label: batteryInfo != null
-                            ? '${batteryInfo!.temperature.toStringAsFixed(1)}°C'
+                        label: widget.batteryInfo != null
+                            ? '${widget.batteryInfo!.temperature.toStringAsFixed(1)}°C'
                             : '-- °C',
                       ),
                       _MetricChip(
                         icon: Icons.speed_outlined,
-                        label: batteryInfo != null
-                            ? '${batteryInfo!.voltage.toStringAsFixed(2)}V'
+                        label: widget.batteryInfo != null
+                            ? '${widget.batteryInfo!.voltage.toStringAsFixed(2)}V'
                             : '-- V',
                       ),
                       _MetricChip(
                         icon: Icons.shield_outlined,
-                        label: batteryHealth?.riskLevel ?? 'Health unknown',
+                        label: widget.batteryHealth?.riskLevel ?? 'Health unknown',
                       ),
                     ],
                   ),
@@ -98,7 +153,7 @@ class DashboardPage extends StatelessWidget {
                   title: const Text('Battery details'),
                   subtitle: const Text('Level, state, health, temperature, and manual refresh'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: onOpenBatteryDetails,
+                  onTap: widget.onOpenBatteryDetails,
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -106,7 +161,7 @@ class DashboardPage extends StatelessWidget {
                   title: const Text('低电量系统通知'),
                   subtitle: const Text('配置阈值订阅，触发原生通知或 Flutter 回调'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: onOpenLowBatteryAlerts,
+                  onTap: widget.onOpenLowBatteryAlerts,
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -114,7 +169,7 @@ class DashboardPage extends StatelessWidget {
                   title: const Text('蓝牙电量同步'),
                   subtitle: const Text('选择主/从机后进行电量互通'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: onOpenPeerBatterySync,
+                  onTap: widget.onOpenPeerBatterySync,
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -122,15 +177,15 @@ class DashboardPage extends StatelessWidget {
                   title: const Text('IoT native controls'),
                   subtitle: const Text('Scan, connect, and sync via MethodChannel'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: onOpenIotControls,
+                  onTap: widget.onOpenIotControls,
                 ),
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.event_note_outlined),
                   title: const Text('Event stream log'),
-                  subtitle: Text('$eventCount recent entries from iot/stream'),
+                  subtitle: Text('${widget.eventCount} recent entries from iot/stream'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: onOpenEventLog,
+                  onTap: widget.onOpenEventLog,
                 ),
               ],
             ),
