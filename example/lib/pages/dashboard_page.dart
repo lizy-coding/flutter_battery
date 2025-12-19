@@ -3,6 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_battery/flutter_battery.dart';
 
+import '../perflab/perflab_channel.dart';
+import '../startup_trace.dart';
+
+bool _startupFirstBuildLogged = false;
+bool _startupFirstFrameLogged = false;
+
 /// Landing screen showing battery overview and entry points to feature demos.
 class DashboardPage extends StatelessWidget {
   const DashboardPage({
@@ -32,6 +38,17 @@ class DashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!_startupFirstBuildLogged) {
+      _startupFirstBuildLogged = true;
+      StartupTrace.markFirstBuild();
+      PerfLabChannel.logMarker('flutter_first_build');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_startupFirstFrameLogged) return;
+        _startupFirstFrameLogged = true;
+        StartupTrace.markFirstFrame();
+        PerfLabChannel.logMarker('flutter_first_frame');
+      });
+    }
     final isCharging = batteryInfo?.isCharging ?? false;
     return Scaffold(
       appBar: AppBar(

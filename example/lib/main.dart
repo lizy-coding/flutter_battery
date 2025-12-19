@@ -9,6 +9,7 @@ import 'pages/dashboard_page.dart';
 import 'pages/event_stream_page.dart';
 import 'pages/iot_controls_page.dart';
 import 'pages/low_battery_notification_page.dart';
+import 'perflab/perflab_channel.dart';
 import 'role_selection_page.dart';
 import 'routes.dart';
 import 'startup_trace.dart';
@@ -16,7 +17,9 @@ import 'startup_trace.dart';
 void main() {
   StartupTrace.start();
   WidgetsFlutterBinding.ensureInitialized();
+  PerfLabChannel.logMarker('flutter_main_t0');
   StartupTrace.markRunApp();
+  PerfLabChannel.logMarker('flutter_runApp');
   runApp(const FlutterBatteryExampleApp());
 }
 
@@ -47,7 +50,6 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
   @override
   void initState() {
     super.initState();
-    StartupTrace.scheduleFirstFrameHook();
     _bootstrapBattery();
     _listenToIotEvents();
   }
