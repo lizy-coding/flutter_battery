@@ -1,12 +1,14 @@
-{
-    "CODE_SIGN_IDENTITY": "",
-    "CODE_SIGNING_REQUIRED": "NO",
-    "FRAMEWORK_SEARCH_PATHS": [
-        "$(inherited)",
-        "${PODS_CONFIGURATION_BUILD_DIR}/FlutterMacOS"
-    ],
-    "FLUTTER_GIT_URL": "https://github.com/flutter/flutter.git",
-    "FLUTTER_ROOT": "${env.FLUTTER_ROOT}",
-    "CLANG_CXX_LANGUAGE_STANDARD": "c++14",
-    "CLANG_ENABLE_MODULES": "YES"
-}
+// Application-level settings for the Runner target.
+//
+// This may be replaced with something auto-generated from metadata (e.g., pubspec.yaml) in the
+// future. If not, the values below would default to using the project name when this becomes a
+// 'flutter create' template.
+
+// The application's name. By default this is also the title of the Flutter window.
+PRODUCT_NAME = flutter_battery_example
+
+// The application's bundle identifier
+PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterBatteryExample
+
+// The copyright displayed in application information
+PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.

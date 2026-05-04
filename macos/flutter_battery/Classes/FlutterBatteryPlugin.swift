@@ -1,5 +1,4 @@
 import Cocoa
-import FlutterMacOS
 
 public class FlutterBatteryPlugin: NSObject, FlutterPlugin {
     private var methodChannel: FlutterMethodChannel?

@@ -94,7 +94,7 @@ public class BatteryMonitor {
         
         for ps in sources {
             let description = IOPSGetPowerSourceDescription(snapshot, ps).takeUnretainedValue() as! [String: Any]
-            let technicalInfo = description[kIOPSTechnologyKey] as? String ?? ""
+            _ = description["Technology"] as? String ?? ""
             
             if let capacity = description[kIOPSCurrentCapacityKey] as? Int {
                 level = capacity

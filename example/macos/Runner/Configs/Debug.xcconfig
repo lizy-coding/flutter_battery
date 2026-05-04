@@ -1,3 +1,2 @@
-#include "Pods/Target Support Files/FlutterMacOS/FlutterMacOS.debug.xcconfig"
-
-#include "AppInfo.xcconfig"
+#include "../../Flutter/Flutter-Debug.xcconfig"
+#include "Warnings.xcconfig"
