@@ -1,0 +1,56 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 54;
+	objects = {
+
+/* Begin PBXBuildFile section */
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		33CC111E2044A3C60003C045 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		33CC111F2044A3C60003C045 /* MainFlutterWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainFlutterWindow.swift; sourceTree = "<group>"; };
+		33CC11202044A3C60003C045 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		33CC11212044A3C60003C045 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		331C80D8294A6A1C0083B6CD /* Runner */ = {
+			isa = PBXGroup;
+			children = (
+				33CC111E2044A3C60003C045 /* AppDelegate.swift */,
+				33CC111F2044A3C60003C045 /* MainFlutterWindow.swift */,
+				33CC11202044A3C60003C045 /* Info.plist */,
+				33CC11212044A3C60003C045 /* Runner.entitlements */,
+			);
+			path = Runner;
+			sourceTree = "<group>";
+		};
+		331C80D9294A6A1C0083B6CD /* Root */ = {
+			isa = PBXGroup;
+			children = (
+				331C80D8294A6A1C0083B6CD /* Runner */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+/* End XCConfigurationList section */
+	};
+	rootObject = 331C80DA294A6A1C0083B6CD /* Project object */;
+}

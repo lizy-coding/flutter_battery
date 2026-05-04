@@ -1,0 +1,12 @@
+{
+    "CODE_SIGN_IDENTITY": "",
+    "CODE_SIGNING_REQUIRED": "NO",
+    "FRAMEWORK_SEARCH_PATHS": [
+        "$(inherited)",
+        "${PODS_CONFIGURATION_BUILD_DIR}/FlutterMacOS"
+    ],
+    "FLUTTER_GIT_URL": "https://github.com/flutter/flutter.git",
+    "FLUTTER_ROOT": "${env.FLUTTER_ROOT}",
+    "CLANG_CXX_LANGUAGE_STANDARD": "c++14",
+    "CLANG_ENABLE_MODULES": "YES"
+}

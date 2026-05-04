@@ -1,0 +1,3 @@
+#include "Pods/Target Support Files/FlutterMacOS/FlutterMacOS.debug.xcconfig"
+
+#include "AppInfo.xcconfig"
