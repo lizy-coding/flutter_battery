@@ -39,6 +39,8 @@ flutter:
         pluginClass: FlutterBatteryPlugin
       ios:
         pluginClass: FlutterBatteryPlugin
+      macos:
+        pluginClass: FlutterBatteryPlugin
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:
