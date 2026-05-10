@@ -41,6 +41,73 @@ public class BatteryMonitor {
         let sources = IOPSCopyPowerSourcesList(snapshot).takeRetainedValue() as [CFTypeRef]
         return !sources.isEmpty
     }
+
+    private struct HardwareMetrics {
+        var temperature: Double = 0.0
+        var voltage: Double = 0.0
+        var maxCapacity: Int = -1
+        var designCapacity: Int = -1
+        var cycleCount: Int = -1
+        var manufacturer: String = ""
+    }
+
+    private func getHardwareMetrics() -> HardwareMetrics {
+        var metrics = HardwareMetrics()
+        let service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("AppleSmartBattery"))
+        if service == 0 {
+            return metrics
+        }
+        defer {
+            IOObjectRelease(service)
+        }
+
+        metrics.cycleCount = readIntProperty(service: service, key: "CycleCount") ?? -1
+        metrics.designCapacity = readIntProperty(service: service, key: "DesignCapacity") ?? -1
+        metrics.maxCapacity = readIntProperty(service: service, key: "AppleRawMaxCapacity")
+            ?? readIntProperty(service: service, key: "MaxCapacity")
+            ?? -1
+        metrics.temperature = normalizeTemperature(readIntProperty(service: service, key: "Temperature"))
+        metrics.voltage = normalizeVoltage(readIntProperty(service: service, key: "Voltage"))
+
+        if let manufacturerData = IORegistryEntryCreateCFProperty(service, "Manufacturer" as CFString, kCFAllocatorDefault, 0) {
+            metrics.manufacturer = manufacturerData.takeRetainedValue() as? String ?? ""
+        }
+
+        return metrics
+    }
+
+    private func readIntProperty(service: io_registry_entry_t, key: String) -> Int? {
+        guard let data = IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0) else {
+            return nil
+        }
+        let value = data.takeRetainedValue()
+        if let intValue = value as? Int {
+            return intValue
+        }
+        if let number = value as? NSNumber {
+            return number.intValue
+        }
+        return nil
+    }
+
+    private func normalizeTemperature(_ rawValue: Int?) -> Double {
+        guard let rawValue = rawValue, rawValue > 0 else {
+            return 0.0
+        }
+        let value = Double(rawValue)
+        if rawValue > 1000 {
+            return round((value / 100.0) * 10) / 10
+        }
+        return round((value / 10.0) * 10) / 10
+    }
+
+    private func normalizeVoltage(_ rawValue: Int?) -> Double {
+        guard let rawValue = rawValue, rawValue > 0 else {
+            return 0.0
+        }
+        let value = rawValue > 100 ? Double(rawValue) / 1000.0 : Double(rawValue)
+        return round(value * 100) / 100
+    }
     
     public func getBatteryLevel() -> Int {
         let snapshot = IOPSCopyPowerSourcesInfo().takeRetainedValue()
@@ -64,6 +131,7 @@ public class BatteryMonitor {
         var isCharged = false
         var timeToFull = -1
         var timeToEmpty = -1
+        let metrics = getHardwareMetrics()
         
         for ps in sources {
             let description = IOPSGetPowerSourceDescription(snapshot, ps).takeUnretainedValue() as! [String: Any]
@@ -94,6 +162,8 @@ public class BatteryMonitor {
             "isCharged": isCharged,
             "timeToFull": timeToFull,
             "timeToEmpty": timeToEmpty,
+            "temperature": metrics.temperature,
+            "voltage": metrics.voltage,
             "state": state,
             "timestamp": Int(Date().timeIntervalSince1970 * 1000)
         ]
@@ -107,11 +177,9 @@ public class BatteryMonitor {
         var isCharging = false
         var maxCapacity = -1
         var currentCapacity = -1
-        var designCapacity = -1
-        var cycleCount = -1
         var serialNumber = ""
-        var manufacturer = ""
         var deviceName = ""
+        let metrics = getHardwareMetrics()
         
         for ps in sources {
             let description = IOPSGetPowerSourceDescription(snapshot, ps).takeUnretainedValue() as! [String: Any]
@@ -121,7 +189,6 @@ public class BatteryMonitor {
                 level = capacity
                 currentCapacity = capacity
             }
-            _ = description[kIOPSMaxCapacityKey] as? Int
             if let charging = description[kIOPSIsChargingKey] as? Bool {
                 isCharging = charging
             }
@@ -133,36 +200,17 @@ public class BatteryMonitor {
             }
         }
         
-        let service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("AppleSmartBattery"))
-        if service != 0 {
-            if let cycleData = IORegistryEntryCreateCFProperty(service, "CycleCount" as CFString, kCFAllocatorDefault, 0) {
-                cycleCount = cycleData.takeRetainedValue() as? Int ?? -1
-            }
-            if let designCapData = IORegistryEntryCreateCFProperty(service, "DesignCapacity" as CFString, kCFAllocatorDefault, 0) {
-                designCapacity = designCapData.takeRetainedValue() as? Int ?? -1
-            }
-            if let rawMaxCapData = IORegistryEntryCreateCFProperty(service, "AppleRawMaxCapacity" as CFString, kCFAllocatorDefault, 0) {
-                maxCapacity = rawMaxCapData.takeRetainedValue() as? Int ?? -1
-            }
-            if maxCapacity <= 0,
-               let maxCapData = IORegistryEntryCreateCFProperty(service, "MaxCapacity" as CFString, kCFAllocatorDefault, 0) {
-                maxCapacity = maxCapData.takeRetainedValue() as? Int ?? -1
-            }
-            if let manufacturerData = IORegistryEntryCreateCFProperty(service, "Manufacturer" as CFString, kCFAllocatorDefault, 0) {
-                manufacturer = manufacturerData.takeRetainedValue() as? String ?? ""
-            }
-            IOObjectRelease(service)
-        }
+        maxCapacity = metrics.maxCapacity
         
-        let healthPercentage = maxCapacity > 0 && designCapacity > 0
-            ? Double(maxCapacity) / Double(designCapacity) * 100.0
+        let healthPercentage = maxCapacity > 0 && metrics.designCapacity > 0
+            ? Double(maxCapacity) / Double(metrics.designCapacity) * 100.0
             : 0.0
         let status = getHealthStatus(
             healthPercentage: healthPercentage,
-            hasReliableCapacity: maxCapacity > 0 && designCapacity > 0,
-            cycleCount: cycleCount
+            hasReliableCapacity: maxCapacity > 0 && metrics.designCapacity > 0,
+            cycleCount: metrics.cycleCount
         )
-        let recommendations = getHealthRecommendations(status: status, healthPercentage: healthPercentage, cycleCount: cycleCount, isCharging: isCharging, level: level)
+        let recommendations = getHealthRecommendations(status: status, healthPercentage: healthPercentage, cycleCount: metrics.cycleCount, isCharging: isCharging, level: level)
         let riskLevel = getRiskLevel(status: status)
         
         return [
@@ -172,14 +220,16 @@ public class BatteryMonitor {
             "healthPercentage": round(healthPercentage * 100) / 100,
             "maxCapacity": maxCapacity,
             "currentCapacity": currentCapacity,
-            "designCapacity": designCapacity,
-            "cycleCount": cycleCount,
+            "designCapacity": metrics.designCapacity,
+            "cycleCount": metrics.cycleCount,
             "serialNumber": serialNumber,
-            "manufacturer": manufacturer,
+            "manufacturer": metrics.manufacturer,
             "deviceName": deviceName,
             "isCharging": isCharging,
             "level": level,
             "batteryLevel": level,
+            "temperature": metrics.temperature,
+            "voltage": metrics.voltage,
             "riskLevel": riskLevel,
             "recommendations": recommendations,
             "timestamp": Int(Date().timeIntervalSince1970 * 1000)
