@@ -10,6 +10,7 @@ import 'pages/event_stream_page.dart';
 import 'pages/iot_controls_page.dart';
 import 'pages/low_battery_notification_page.dart';
 import 'perflab/perflab_channel.dart';
+import 'platform/example_platform_adapter.dart';
 import 'role_selection_page.dart';
 import 'routes.dart';
 import 'startup_trace.dart';
@@ -28,24 +29,34 @@ class FlutterBatteryExampleApp extends StatefulWidget {
   const FlutterBatteryExampleApp({super.key});
 
   @override
-  State<FlutterBatteryExampleApp> createState() => _FlutterBatteryExampleAppState();
+  State<FlutterBatteryExampleApp> createState() =>
+      _FlutterBatteryExampleAppState();
 }
 
 class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  final ExamplePlatformAdapter _platform = ExamplePlatformAdapter.current();
   final FlutterBattery _plugin = FlutterBattery();
   final ValueNotifier<int?> _levelListenable = ValueNotifier<int?>(null);
-  final ValueNotifier<BatteryInfo?> _infoListenable = ValueNotifier<BatteryInfo?>(null);
-  final ValueNotifier<BatteryHealth?> _healthListenable = ValueNotifier<BatteryHealth?>(null);
-  final ValueNotifier<List<String>> _iotEventsListenable = ValueNotifier<List<String>>(<String>[]);
+  final ValueNotifier<BatteryInfo?> _infoListenable =
+      ValueNotifier<BatteryInfo?>(null);
+  final ValueNotifier<BatteryHealth?> _healthListenable =
+      ValueNotifier<BatteryHealth?>(null);
+  final ValueNotifier<List<String>> _iotEventsListenable =
+      ValueNotifier<List<String>>(<String>[]);
 
   int? _batteryLevel;
   BatteryInfo? _batteryInfo;
   BatteryHealth? _batteryHealth;
 
-  static const MethodChannel _iotMethod = MethodChannel('iot/native');
-  static const EventChannel _iotEvent = EventChannel('iot/stream');
   StreamSubscription? _iotSub;
   List<String> _iotEvents = <String>[];
+
+  FeatureAvailability get _peerBatterySyncAvailability =>
+      _platform.availabilityFor(ExampleFeature.peerBatterySync);
+
+  FeatureAvailability get _iotNativeControlsAvailability =>
+      _platform.availabilityFor(ExampleFeature.iotNativeControls);
 
   @override
   void initState() {
@@ -91,7 +102,7 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
 
   // IoT section: demo EventChannel/MethodChannel usage unrelated to battery.
   void _listenToIotEvents() {
-    _iotSub = _iotEvent.receiveBroadcastStream().listen((dynamic e) {
+    _iotSub = _platform.iotEvents.listen((dynamic e) {
       _recordIotEvent('event', e);
     }, onError: (Object err) {
       _recordIotEvent('error', err);
@@ -99,6 +110,7 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
   }
 
   void _recordIotEvent(String kind, Object? payload) {
+    if (!mounted) return;
     final stamp = DateTime.now().toIso8601String().substring(11, 19);
     final entry = '$stamp $kind: $payload';
     setState(() {
@@ -126,16 +138,36 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
     }
   }
 
-  Future<void> _startScan() => _iotMethod.invokeMethod<void>('scanDevices');
-  Future<void> _stopScan() => _iotMethod.invokeMethod<void>('stopScan');
-  Future<void> _connect() => _iotMethod.invokeMethod<void>('connect', {'deviceId': 'demo-001'});
-  Future<void> _disconnect() => _iotMethod.invokeMethod<void>('disconnect');
-  Future<void> _startSync() => _iotMethod.invokeMethod<void>('startSync');
-  Future<void> _stopSync() => _iotMethod.invokeMethod<void>('stopSync');
+  Future<void> _startScan() => _invokeIotMethod('scanDevices');
+  Future<void> _stopScan() => _invokeIotMethod('stopScan');
+  Future<void> _connect() =>
+      _invokeIotMethod('connect', {'deviceId': 'demo-001'});
+  Future<void> _disconnect() => _invokeIotMethod('disconnect');
+  Future<void> _startSync() => _invokeIotMethod('startSync');
+  Future<void> _stopSync() => _invokeIotMethod('stopSync');
+
+  Future<void> _invokeIotMethod(String method, [Object? arguments]) async {
+    if (!_iotNativeControlsAvailability.isSupported) {
+      _showUnsupportedFeatureMessage(_iotNativeControlsAvailability);
+      return;
+    }
+    try {
+      await _platform.invokeIotMethod(method, arguments);
+    } on MissingPluginException catch (err) {
+      _recordIotEvent('error', err);
+      _showUnsupportedFeatureMessage(_iotNativeControlsAvailability);
+    } on UnsupportedPlatformFeatureException catch (err) {
+      _recordIotEvent('error', err);
+      _showUnsupportedFeatureMessage(_iotNativeControlsAvailability);
+    } on PlatformException catch (err) {
+      _recordIotEvent('error', err);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       initialRoute: AppRoutes.dashboard,
       onGenerateRoute: _onGenerateRoute,
     );
@@ -161,24 +193,35 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
       case AppRoutes.peerSelection:
         return MaterialPageRoute(
           settings: settings,
-          builder: (_) => const RoleSelectionPage(),
+          builder: (_) => _peerBatterySyncAvailability.isSupported
+              ? const RoleSelectionPage()
+              : _UnsupportedFeaturePage(
+                  title: '蓝牙电量同步',
+                  availability: _peerBatterySyncAvailability,
+                ),
         );
       case AppRoutes.iotControls:
         return MaterialPageRoute(
           settings: settings,
-          builder: (_) => IotControlsPage(
-            startScan: _startScan,
-            stopScan: _stopScan,
-            connect: _connect,
-            disconnect: _disconnect,
-            startSync: _startSync,
-            stopSync: _stopSync,
-          ),
+          builder: (_) => _iotNativeControlsAvailability.isSupported
+              ? IotControlsPage(
+                  startScan: _startScan,
+                  stopScan: _stopScan,
+                  connect: _connect,
+                  disconnect: _disconnect,
+                  startSync: _startSync,
+                  stopSync: _stopSync,
+                )
+              : _UnsupportedFeaturePage(
+                  title: 'IoT native controls',
+                  availability: _iotNativeControlsAvailability,
+                ),
         );
       case AppRoutes.eventLog:
         return MaterialPageRoute(
           settings: settings,
-          builder: (_) => EventStreamPage(eventsListenable: _iotEventsListenable),
+          builder: (_) =>
+              EventStreamPage(eventsListenable: _iotEventsListenable),
         );
       case AppRoutes.dashboard:
       default:
@@ -192,6 +235,8 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
             eventCount: _iotEvents.length,
             onRefresh: _refresh,
             onBootstrap: _bootstrapBattery,
+            peerBatterySyncAvailability: _peerBatterySyncAvailability,
+            iotNativeControlsAvailability: _iotNativeControlsAvailability,
             onOpenBatteryDetails: () => _pushNamed(AppRoutes.batteryDetails),
             onOpenLowBatteryAlerts: () => _pushNamed(AppRoutes.lowBattery),
             onOpenPeerBatterySync: () => _pushNamed(AppRoutes.peerSelection),
@@ -203,6 +248,61 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
   }
 
   void _pushNamed(String route) {
-    Navigator.of(context).pushNamed(route);
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) return;
+
+    final availability = _availabilityForRoute(route);
+    if (availability != null && !availability.isSupported) {
+      _showUnsupportedFeatureMessage(availability);
+      return;
+    }
+
+    navigator.pushNamed(route);
+  }
+
+  FeatureAvailability? _availabilityForRoute(String route) {
+    switch (route) {
+      case AppRoutes.peerSelection:
+        return _peerBatterySyncAvailability;
+      case AppRoutes.iotControls:
+        return _iotNativeControlsAvailability;
+      default:
+        return null;
+    }
+  }
+
+  void _showUnsupportedFeatureMessage(FeatureAvailability availability) {
+    final scaffoldMessenger = _navigatorKey.currentContext == null
+        ? null
+        : ScaffoldMessenger.maybeOf(_navigatorKey.currentContext!);
+    scaffoldMessenger?.showSnackBar(
+      SnackBar(content: Text(availability.details)),
+    );
+  }
+}
+
+class _UnsupportedFeaturePage extends StatelessWidget {
+  const _UnsupportedFeaturePage({
+    required this.title,
+    required this.availability,
+  });
+
+  final String title;
+  final FeatureAvailability availability;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            availability.details,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
   }
 }

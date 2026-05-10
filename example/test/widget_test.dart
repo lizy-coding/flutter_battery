@@ -1,30 +1,38 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
+import 'package:flutter_battery_example/pages/dashboard_page.dart';
+import 'package:flutter_battery_example/platform/example_platform_adapter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutter_battery_example/main.dart';
-
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('dashboard disables unavailable Android native demos',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DashboardPage(
+          batteryLevel: 50,
+          batteryInfo: null,
+          batteryHealth: null,
+          eventCount: 0,
+          onRefresh: () async {},
+          onBootstrap: () {},
+          peerBatterySyncAvailability: const FeatureAvailability.unsupported(
+            disabledLabel: '当前平台不可用',
+            details: '蓝牙电量同步 仅支持 Android 原生桥接，当前平台为 macOS。',
+          ),
+          iotNativeControlsAvailability: const FeatureAvailability.unsupported(
+            disabledLabel: '当前平台不可用',
+            details: 'IoT native controls 仅支持 Android 原生桥接，当前平台为 macOS。',
+          ),
+          onOpenBatteryDetails: () {},
+          onOpenLowBatteryAlerts: () {},
+          onOpenPeerBatterySync: () {},
+          onOpenIotControls: () {},
+          onOpenEventLog: () {},
+        ),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('flutter_battery overview'), findsOneWidget);
+    expect(find.text('当前平台不可用'), findsNWidgets(2));
   });
 }

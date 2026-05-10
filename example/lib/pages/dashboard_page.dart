@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_battery/flutter_battery.dart';
 
 import '../perflab/perflab_channel.dart';
+import '../platform/example_platform_adapter.dart';
 import '../startup_trace.dart';
 
 bool _startupFirstBuildLogged = false;
@@ -22,6 +23,8 @@ class DashboardPage extends StatefulWidget {
     required this.eventCount,
     required this.onRefresh,
     required this.onBootstrap,
+    required this.peerBatterySyncAvailability,
+    required this.iotNativeControlsAvailability,
     required this.onOpenBatteryDetails,
     required this.onOpenLowBatteryAlerts,
     required this.onOpenPeerBatterySync,
@@ -36,6 +39,8 @@ class DashboardPage extends StatefulWidget {
   final int eventCount;
   final Future<void> Function() onRefresh;
   final VoidCallback onBootstrap;
+  final FeatureAvailability peerBatterySyncAvailability;
+  final FeatureAvailability iotNativeControlsAvailability;
   final VoidCallback onOpenBatteryDetails;
   final VoidCallback onOpenLowBatteryAlerts;
   final VoidCallback onOpenPeerBatterySync;
@@ -136,7 +141,8 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                       _MetricChip(
                         icon: Icons.shield_outlined,
-                        label: widget.batteryHealth?.riskLevel ?? 'Health unknown',
+                        label:
+                            widget.batteryHealth?.riskLevel ?? 'Health unknown',
                       ),
                     ],
                   ),
@@ -151,7 +157,8 @@ class _DashboardPageState extends State<DashboardPage> {
                 ListTile(
                   leading: const Icon(Icons.battery_std_outlined),
                   title: const Text('Battery details'),
-                  subtitle: const Text('Level, state, health, temperature, and manual refresh'),
+                  subtitle: const Text(
+                      'Level, state, health, temperature, and manual refresh'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: widget.onOpenBatteryDetails,
                 ),
@@ -167,23 +174,42 @@ class _DashboardPageState extends State<DashboardPage> {
                 ListTile(
                   leading: const Icon(Icons.hub_outlined),
                   title: const Text('蓝牙电量同步'),
-                  subtitle: const Text('选择主/从机后进行电量互通'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: widget.onOpenPeerBatterySync,
+                  subtitle: Text(
+                    widget.peerBatterySyncAvailability.isSupported
+                        ? '选择主/从机后进行电量互通'
+                        : widget.peerBatterySyncAvailability.disabledLabel,
+                  ),
+                  trailing: widget.peerBatterySyncAvailability.isSupported
+                      ? const Icon(Icons.chevron_right)
+                      : const Icon(Icons.block_outlined),
+                  enabled: widget.peerBatterySyncAvailability.isSupported,
+                  onTap: widget.peerBatterySyncAvailability.isSupported
+                      ? widget.onOpenPeerBatterySync
+                      : null,
                 ),
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.memory_outlined),
                   title: const Text('IoT native controls'),
-                  subtitle: const Text('Scan, connect, and sync via MethodChannel'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: widget.onOpenIotControls,
+                  subtitle: Text(
+                    widget.iotNativeControlsAvailability.isSupported
+                        ? 'Scan, connect, and sync via MethodChannel'
+                        : widget.iotNativeControlsAvailability.disabledLabel,
+                  ),
+                  trailing: widget.iotNativeControlsAvailability.isSupported
+                      ? const Icon(Icons.chevron_right)
+                      : const Icon(Icons.block_outlined),
+                  enabled: widget.iotNativeControlsAvailability.isSupported,
+                  onTap: widget.iotNativeControlsAvailability.isSupported
+                      ? widget.onOpenIotControls
+                      : null,
                 ),
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.event_note_outlined),
                   title: const Text('Event stream log'),
-                  subtitle: Text('${widget.eventCount} recent entries from iot/stream'),
+                  subtitle: Text(
+                      '${widget.eventCount} recent entries from iot/stream'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: widget.onOpenEventLog,
                 ),
@@ -303,7 +329,8 @@ class _BatteryGaugePainter extends CustomPainter {
       return;
     }
     final center = Offset(size.width / 2, size.height / 2);
-    final baseRadius = math.max(56.0, (math.min(size.width, size.height) / 2 - 12));
+    final baseRadius =
+        math.max(56.0, (math.min(size.width, size.height) / 2 - 12));
     final middleRadius = math.max(40.0, baseRadius - 30);
     final innerRadius = math.max(32.0, baseRadius - 60);
     final levelRatio = _clamp01(level / 100);
@@ -384,7 +411,8 @@ class _BatteryGaugePainter extends CustomPainter {
     final valuePainter = TextPainter(
       text: TextSpan(
         text: value,
-        style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600),
+        style:
+            TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600),
       ),
       textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
@@ -392,7 +420,8 @@ class _BatteryGaugePainter extends CustomPainter {
     final offsetY = center.dy + radius - thickness / 2 - 10;
     textPainter.paint(
       canvas,
-      Offset(center.dx - textPainter.width / 2, offsetY - textPainter.height - 2),
+      Offset(
+          center.dx - textPainter.width / 2, offsetY - textPainter.height - 2),
     );
     valuePainter.paint(
       canvas,
@@ -439,21 +468,27 @@ class _BatteryGaugePainter extends CustomPainter {
     final healthPainter = TextPainter(
       text: TextSpan(
         text: healthLabel,
-        style: TextStyle(color: healthColor, fontSize: 13, fontWeight: FontWeight.w600),
+        style: TextStyle(
+            color: healthColor, fontSize: 13, fontWeight: FontWeight.w600),
       ),
       textDirection: TextDirection.ltr,
       textAlign: TextAlign.center,
     )..layout(maxWidth: 240);
 
-    final startY = center.dy - (levelPainter.height + statePainter.height + healthPainter.height + 8) / 2;
-    levelPainter.paint(canvas, Offset(center.dx - levelPainter.width / 2, startY));
+    final startY = center.dy -
+        (levelPainter.height + statePainter.height + healthPainter.height + 8) /
+            2;
+    levelPainter.paint(
+        canvas, Offset(center.dx - levelPainter.width / 2, startY));
     statePainter.paint(
       canvas,
-      Offset(center.dx - statePainter.width / 2, startY + levelPainter.height + 4),
+      Offset(
+          center.dx - statePainter.width / 2, startY + levelPainter.height + 4),
     );
     healthPainter.paint(
       canvas,
-      Offset(center.dx - healthPainter.width / 2, startY + levelPainter.height + statePainter.height + 8),
+      Offset(center.dx - healthPainter.width / 2,
+          startY + levelPainter.height + statePainter.height + 8),
     );
   }
 
