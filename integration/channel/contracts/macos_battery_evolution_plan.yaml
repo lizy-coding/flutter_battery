@@ -1,0 +1,308 @@
+schema: codex.task_plan.v1
+id: flutter_battery.macos_battery_evolution
+repo: flutter_battery
+generated_from:
+  assessment_date: 2026-05-05
+  platform: macos
+  objective: battery_level_detection
+
+current_state:
+  macos_declared:
+    status: true
+    evidence:
+      - path: pubspec.yaml
+        selector: flutter.plugin.platforms.macos.pluginClass
+        value: FlutterBatteryPlugin
+  method_channel:
+    status: true
+    name: flutter_battery
+    evidence:
+      - path: macos/flutter_battery/Classes/FlutterBatteryPlugin.swift
+        symbol: FlutterMethodChannel
+  event_channel:
+    status: partial
+    name: flutter_battery/battery_stream
+    evidence:
+      - path: macos/flutter_battery/Classes/FlutterBatteryPlugin.swift
+        symbol: FlutterEventChannel
+  battery_level_query:
+    status: supported
+    dart_entrypoint: FlutterBattery.getBatteryLevel
+    native_method: BatteryMonitor.getBatteryLevel
+    native_api:
+      framework: IOKit.ps
+      key: kIOPSCurrentCapacityKey
+  no_battery_device_result:
+    status: ambiguous
+    current_value: -1
+    desired_contract: null_or_explicit_unavailable
+
+gaps:
+  - id: gap.stream.simple_payload_key_mismatch
+    severity: high
+    dart_expected_keys:
+      - batteryLevel
+      - timestamp
+    macos_emitted_keys:
+      - level
+      - timestamp
+    affected_entrypoints:
+      - FlutterBattery.batteryInfoStream
+    files:
+      - lib/flutter_battery.dart
+      - macos/flutter_battery/Classes/BatteryMonitor.swift
+  - id: gap.method_callback_not_wired_on_macos
+    severity: high
+    expected_native_to_dart_methods:
+      - onBatteryLevelChanged
+      - onBatteryInfoChanged
+      - onBatteryHealthChanged
+      - onLowBattery
+    files:
+      - lib/flutter_battery_method_channel.dart
+      - macos/flutter_battery/Classes/FlutterBatteryPlugin.swift
+      - macos/flutter_battery/Classes/BatteryMonitor.swift
+  - id: gap.health_stream_not_emitted_on_macos
+    severity: medium
+    expected_event_type: BATTERY_HEALTH
+    files:
+      - lib/flutter_battery.dart
+      - macos/flutter_battery/Classes/BatteryMonitor.swift
+  - id: gap.contract_missing_flutter_battery_channels
+    severity: medium
+    missing_channels:
+      - flutter_battery
+      - flutter_battery/battery_stream
+    files:
+      - integration/channel/contracts/channel_contract.yaml
+  - id: gap.macos_podspec_version_mismatch
+    severity: low
+    pubspec_version: 0.0.3
+    podspec_version: 0.0.1
+    files:
+      - pubspec.yaml
+      - macos/flutter_battery.podspec
+
+target_contract:
+  method_channel:
+    name: flutter_battery
+    methods:
+      - id: getBatteryLevel
+        args: {}
+        returns:
+          type: int?
+          range: 0..100
+          unavailable: null
+      - id: getBatteryInfo
+        args: {}
+        returns:
+          type: map
+          required_keys:
+            level: int?
+            isCharging: bool
+            state: enum.NORMAL_LOW_CRITICAL_CHARGING_FULL
+            timestamp: int
+          optional_keys:
+            isCharged: bool
+            timeToFull: int
+            timeToEmpty: int
+            temperature: double
+            voltage: double
+      - id: getBatteryHealth
+        args: {}
+        returns:
+          type: map
+          required_keys:
+            state: enum.GOOD_OVERHEAT_DEAD_OVER_VOLTAGE_FAILURE_COLD_UNKNOWN
+            statusLabel: string
+            isGood: bool
+            level: int?
+            isCharging: bool
+            riskLevel: enum.LOW_MEDIUM_HIGH
+            recommendations: list.string
+            timestamp: int
+  event_channel:
+    name: flutter_battery/battery_stream
+    payloads:
+      - type: BATTERY_LEVEL
+        required_keys:
+          type: string
+          batteryLevel: int?
+          level: int?
+          timestamp: int
+      - type: BATTERY_INFO
+        required_keys:
+          type: string
+          level: int?
+          batteryLevel: int?
+          isCharging: bool
+          state: string
+          timestamp: int
+      - type: BATTERY_HEALTH
+        required_keys:
+          type: string
+          state: string
+          statusLabel: string
+          isGood: bool
+          level: int?
+          riskLevel: string
+          recommendations: list.string
+          timestamp: int
+
+tasks:
+  - id: task.001.normalize_macos_level_unavailable
+    priority: P0
+    status: pending
+    depends_on: []
+    intent: define_no_battery_semantics
+    files:
+      read:
+        - lib/flutter_battery_method_channel.dart
+        - macos/flutter_battery/Classes/BatteryMonitor.swift
+      write:
+        - macos/flutter_battery/Classes/BatteryMonitor.swift
+        - lib/flutter_battery_method_channel.dart
+        - test/flutter_battery_method_channel_test.dart
+    operations:
+      - native_return_nil_for_unavailable_or_keep_minus_one_with_documented_contract
+      - dart_normalize_minus_one_to_null_if_contract_unavailable_is_null
+      - add_method_channel_test_for_minus_one_or_null
+    acceptance:
+      - getBatteryLevel_returns_0_to_100_on_battery_macos
+      - getBatteryLevel_returns_null_or_documented_unavailable_on_desktop_macos
+
+  - id: task.002.normalize_event_payload_keys
+    priority: P0
+    status: pending
+    depends_on:
+      - task.001.normalize_macos_level_unavailable
+    intent: make_batteryInfoStream_parse_macos_level
+    files:
+      read:
+        - lib/flutter_battery.dart
+        - macos/flutter_battery/Classes/BatteryMonitor.swift
+      write:
+        - lib/flutter_battery.dart
+        - macos/flutter_battery/Classes/BatteryMonitor.swift
+        - test/flutter_battery_test.dart
+    operations:
+      - emit_type_BATTERY_LEVEL_from_macos_simple_level_timer
+      - emit_batteryLevel_and_level_aliases
+      - update_dart_stream_parser_to_accept_level_or_batteryLevel
+      - add_stream_test_for_macos_payload_level_only
+    acceptance:
+      - batteryInfoStream_maps_level_key_to_BatteryInfo.level
+      - batteryInfoStream_maps_batteryLevel_key_to_BatteryInfo.level
+
+  - id: task.003.wire_macos_method_callbacks
+    priority: P1
+    status: pending
+    depends_on:
+      - task.002.normalize_event_payload_keys
+    intent: align_configureBatteryCallbacks_on_macos
+    files:
+      read:
+        - lib/flutter_battery_method_channel.dart
+        - macos/flutter_battery/Classes/FlutterBatteryPlugin.swift
+        - macos/flutter_battery/Classes/BatteryMonitor.swift
+      write:
+        - macos/flutter_battery/Classes/FlutterBatteryPlugin.swift
+        - macos/flutter_battery/Classes/BatteryMonitor.swift
+    operations:
+      - inject_method_channel_into_BatteryMonitor_or_callback_bridge
+      - invoke_onBatteryLevelChanged_with_batteryLevel
+      - invoke_onBatteryInfoChanged_with_map_payload
+      - invoke_onBatteryHealthChanged_with_map_payload
+    acceptance:
+      - configureBatteryCallbacks_onBatteryLevelChange_receives_macos_timer_updates
+      - configureBatteryCallbacks_onBatteryInfoChange_receives_macos_info_updates
+      - configureBatteryCallbacks_onBatteryHealthChange_receives_macos_health_updates
+
+  - id: task.004.emit_macos_health_stream
+    priority: P1
+    status: pending
+    depends_on:
+      - task.002.normalize_event_payload_keys
+    intent: make_batteryHealthStream_work_on_macos
+    files:
+      read:
+        - lib/flutter_battery.dart
+        - macos/flutter_battery/Classes/BatteryMonitor.swift
+      write:
+        - macos/flutter_battery/Classes/BatteryMonitor.swift
+        - test/flutter_battery_test.dart
+    operations:
+      - add_type_BATTERY_HEALTH_to_macos_health_payload
+      - send_health_payload_to_eventChannelHandler
+      - add_stream_test_for_BATTERY_HEALTH_payload
+    acceptance:
+      - batteryHealthStream_emits_BatteryHealth_from_macos_event_payload
+
+  - id: task.005.update_channel_contract
+    priority: P2
+    status: pending
+    depends_on:
+      - task.002.normalize_event_payload_keys
+      - task.004.emit_macos_health_stream
+    intent: document_flutter_battery_channels
+    files:
+      read:
+        - integration/channel/contracts/channel_contract.yaml
+      write:
+        - integration/channel/contracts/channel_contract.yaml
+    operations:
+      - add_flutter_battery_method_channel_schema
+      - add_flutter_battery_event_channel_schema
+      - encode_platform_notes_for_android_macos
+    acceptance:
+      - channel_contract_contains_flutter_battery_method_schema
+      - channel_contract_contains_flutter_battery_stream_schema
+
+  - id: task.006.sync_macos_metadata_docs
+    priority: P3
+    status: pending
+    depends_on:
+      - task.005.update_channel_contract
+    intent: release_readiness
+    files:
+      read:
+        - pubspec.yaml
+        - macos/flutter_battery.podspec
+        - README.md
+        - CHANGELOG.md
+      write:
+        - macos/flutter_battery.podspec
+        - README.md
+        - CHANGELOG.md
+    operations:
+      - sync_podspec_version_with_pubspec
+      - document_macos_supported_methods
+      - document_macos_unsupported_notifications
+      - document_no_battery_device_behavior
+    acceptance:
+      - podspec_version_equals_pubspec_version
+      - README_contains_macos_support_matrix
+
+verification:
+  static:
+    commands:
+      - dart format lib test
+      - flutter analyze
+      - flutter test
+  manual_macos:
+    commands:
+      - cd example && flutter run -d macos
+    checks:
+      - getBatteryLevel_displays_actual_percentage_on_macbook
+      - getBatteryInfo_displays_level_and_charging_state
+      - batteryInfoStream_updates_without_zero_regression
+      - batteryHealthStream_emits_when_enabled
+      - no_crash_on_no_battery_mac
+
+execution_order:
+  - task.001.normalize_macos_level_unavailable
+  - task.002.normalize_event_payload_keys
+  - task.003.wire_macos_method_callbacks
+  - task.004.emit_macos_health_stream
+  - task.005.update_channel_contract
+  - task.006.sync_macos_metadata_docs
