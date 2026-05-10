@@ -1,6 +1,7 @@
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'flutter_battery_method_channel.dart';
+import 'src/platform_capabilities.dart';
 
 abstract class FlutterBatteryPlatform extends PlatformInterface {
   /// Constructs a FlutterBatteryPlatform.
@@ -21,6 +22,10 @@ abstract class FlutterBatteryPlatform extends PlatformInterface {
   static set instance(FlutterBatteryPlatform instance) {
     PlatformInterface.verifyToken(instance, _token);
     _instance = instance;
+  }
+
+  Future<BatteryPlatformCapabilities> getPlatformCapabilities() {
+    throw UnimplementedError('getPlatformCapabilities() has not been implemented.');
   }
 
   Future<String?> getPlatformVersion() {

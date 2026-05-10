@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_battery/flutter_battery.dart';
 
 import '../perflab/perflab_channel.dart';
-import '../platform/example_platform_adapter.dart';
 import '../startup_trace.dart';
 
 bool _startupFirstBuildLogged = false;
@@ -23,8 +22,7 @@ class DashboardPage extends StatefulWidget {
     required this.eventCount,
     required this.onRefresh,
     required this.onBootstrap,
-    required this.peerBatterySyncAvailability,
-    required this.iotNativeControlsAvailability,
+    required this.capabilities,
     required this.onOpenBatteryDetails,
     required this.onOpenLowBatteryAlerts,
     required this.onOpenPeerBatterySync,
@@ -39,8 +37,7 @@ class DashboardPage extends StatefulWidget {
   final int eventCount;
   final Future<void> Function() onRefresh;
   final VoidCallback onBootstrap;
-  final FeatureAvailability peerBatterySyncAvailability;
-  final FeatureAvailability iotNativeControlsAvailability;
+  final BatteryPlatformCapabilities capabilities;
   final VoidCallback onOpenBatteryDetails;
   final VoidCallback onOpenLowBatteryAlerts;
   final VoidCallback onOpenPeerBatterySync;
@@ -175,15 +172,15 @@ class _DashboardPageState extends State<DashboardPage> {
                   leading: const Icon(Icons.hub_outlined),
                   title: const Text('蓝牙电量同步'),
                   subtitle: Text(
-                    widget.peerBatterySyncAvailability.isSupported
+                    widget.capabilities.isSupported(BatteryFeature.blePeerSync)
                         ? '选择主/从机后进行电量互通'
-                        : widget.peerBatterySyncAvailability.disabledLabel,
+                        : '当前平台不支持',
                   ),
-                  trailing: widget.peerBatterySyncAvailability.isSupported
+                  trailing: widget.capabilities.isSupported(BatteryFeature.blePeerSync)
                       ? const Icon(Icons.chevron_right)
                       : const Icon(Icons.block_outlined),
-                  enabled: widget.peerBatterySyncAvailability.isSupported,
-                  onTap: widget.peerBatterySyncAvailability.isSupported
+                  enabled: widget.capabilities.isSupported(BatteryFeature.blePeerSync),
+                  onTap: widget.capabilities.isSupported(BatteryFeature.blePeerSync)
                       ? widget.onOpenPeerBatterySync
                       : null,
                 ),
@@ -192,15 +189,15 @@ class _DashboardPageState extends State<DashboardPage> {
                   leading: const Icon(Icons.memory_outlined),
                   title: const Text('IoT native controls'),
                   subtitle: Text(
-                    widget.iotNativeControlsAvailability.isSupported
+                    widget.capabilities.isSupported(BatteryFeature.iotExampleBridge)
                         ? 'Scan, connect, and sync via MethodChannel'
-                        : widget.iotNativeControlsAvailability.disabledLabel,
+                        : '当前平台不支持',
                   ),
-                  trailing: widget.iotNativeControlsAvailability.isSupported
+                  trailing: widget.capabilities.isSupported(BatteryFeature.iotExampleBridge)
                       ? const Icon(Icons.chevron_right)
                       : const Icon(Icons.block_outlined),
-                  enabled: widget.iotNativeControlsAvailability.isSupported,
-                  onTap: widget.iotNativeControlsAvailability.isSupported
+                  enabled: widget.capabilities.isSupported(BatteryFeature.iotExampleBridge),
+                  onTap: widget.capabilities.isSupported(BatteryFeature.iotExampleBridge)
                       ? widget.onOpenIotControls
                       : null,
                 ),

@@ -24,7 +24,6 @@ void main() {
   runApp(const FlutterBatteryExampleApp());
 }
 
-// Entry point for the demo app: wires battery monitoring, IoT stubs, and sample pages.
 class FlutterBatteryExampleApp extends StatefulWidget {
   const FlutterBatteryExampleApp({super.key});
 
@@ -52,11 +51,7 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
   StreamSubscription? _iotSub;
   List<String> _iotEvents = <String>[];
 
-  FeatureAvailability get _peerBatterySyncAvailability =>
-      _platform.availabilityFor(ExampleFeature.peerBatterySync);
-
-  FeatureAvailability get _iotNativeControlsAvailability =>
-      _platform.availabilityFor(ExampleFeature.iotNativeControls);
+  BatteryPlatformCapabilities get _capabilities => _platform.capabilities;
 
   @override
   void initState() {
@@ -74,7 +69,6 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
     super.dispose();
   }
 
-  // Configure the plugin callbacks and start native-side monitoring streams.
   void _bootstrapBattery() {
     _refresh();
     _plugin.configureBatteryCallbacks(
@@ -100,7 +94,6 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
     );
   }
 
-  // IoT section: demo EventChannel/MethodChannel usage unrelated to battery.
   void _listenToIotEvents() {
     _iotSub = _platform.iotEvents.listen((dynamic e) {
       _recordIotEvent('event', e);
@@ -147,18 +140,18 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
   Future<void> _stopSync() => _invokeIotMethod('stopSync');
 
   Future<void> _invokeIotMethod(String method, [Object? arguments]) async {
-    if (!_iotNativeControlsAvailability.isSupported) {
-      _showUnsupportedFeatureMessage(_iotNativeControlsAvailability);
+    if (!_capabilities.isSupported(BatteryFeature.iotExampleBridge)) {
+      _showUnsupportedFeatureMessage(BatteryFeature.iotExampleBridge);
       return;
     }
     try {
       await _platform.invokeIotMethod(method, arguments);
     } on MissingPluginException catch (err) {
       _recordIotEvent('error', err);
-      _showUnsupportedFeatureMessage(_iotNativeControlsAvailability);
-    } on UnsupportedPlatformFeatureException catch (err) {
+      _showUnsupportedFeatureMessage(BatteryFeature.iotExampleBridge);
+    } on UnsupportedBatteryFeatureException catch (err) {
       _recordIotEvent('error', err);
-      _showUnsupportedFeatureMessage(_iotNativeControlsAvailability);
+      _showUnsupportedFeatureMessage(BatteryFeature.iotExampleBridge);
     } on PlatformException catch (err) {
       _recordIotEvent('error', err);
     }
@@ -193,17 +186,17 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
       case AppRoutes.peerSelection:
         return MaterialPageRoute(
           settings: settings,
-          builder: (_) => _peerBatterySyncAvailability.isSupported
+          builder: (_) => _capabilities.isSupported(BatteryFeature.blePeerSync)
               ? const RoleSelectionPage()
-              : _UnsupportedFeaturePage(
+              : const _UnsupportedFeaturePage(
                   title: '蓝牙电量同步',
-                  availability: _peerBatterySyncAvailability,
+                  feature: BatteryFeature.blePeerSync,
                 ),
         );
       case AppRoutes.iotControls:
         return MaterialPageRoute(
           settings: settings,
-          builder: (_) => _iotNativeControlsAvailability.isSupported
+          builder: (_) => _capabilities.isSupported(BatteryFeature.iotExampleBridge)
               ? IotControlsPage(
                   startScan: _startScan,
                   stopScan: _stopScan,
@@ -212,9 +205,9 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
                   startSync: _startSync,
                   stopSync: _stopSync,
                 )
-              : _UnsupportedFeaturePage(
+              : const _UnsupportedFeaturePage(
                   title: 'IoT native controls',
-                  availability: _iotNativeControlsAvailability,
+                  feature: BatteryFeature.iotExampleBridge,
                 ),
         );
       case AppRoutes.eventLog:
@@ -235,8 +228,7 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
             eventCount: _iotEvents.length,
             onRefresh: _refresh,
             onBootstrap: _bootstrapBattery,
-            peerBatterySyncAvailability: _peerBatterySyncAvailability,
-            iotNativeControlsAvailability: _iotNativeControlsAvailability,
+            capabilities: _capabilities,
             onOpenBatteryDetails: () => _pushNamed(AppRoutes.batteryDetails),
             onOpenLowBatteryAlerts: () => _pushNamed(AppRoutes.lowBattery),
             onOpenPeerBatterySync: () => _pushNamed(AppRoutes.peerSelection),
@@ -251,32 +243,32 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
     final navigator = _navigatorKey.currentState;
     if (navigator == null) return;
 
-    final availability = _availabilityForRoute(route);
-    if (availability != null && !availability.isSupported) {
-      _showUnsupportedFeatureMessage(availability);
+    final feature = _featureForRoute(route);
+    if (feature != null && !_capabilities.isSupported(feature)) {
+      _showUnsupportedFeatureMessage(feature);
       return;
     }
 
     navigator.pushNamed(route);
   }
 
-  FeatureAvailability? _availabilityForRoute(String route) {
+  BatteryFeature? _featureForRoute(String route) {
     switch (route) {
       case AppRoutes.peerSelection:
-        return _peerBatterySyncAvailability;
+        return BatteryFeature.blePeerSync;
       case AppRoutes.iotControls:
-        return _iotNativeControlsAvailability;
+        return BatteryFeature.iotExampleBridge;
       default:
         return null;
     }
   }
 
-  void _showUnsupportedFeatureMessage(FeatureAvailability availability) {
+  void _showUnsupportedFeatureMessage(BatteryFeature feature) {
     final scaffoldMessenger = _navigatorKey.currentContext == null
         ? null
         : ScaffoldMessenger.maybeOf(_navigatorKey.currentContext!);
     scaffoldMessenger?.showSnackBar(
-      SnackBar(content: Text(availability.details)),
+      SnackBar(content: Text('$feature is not supported on this platform.')),
     );
   }
 }
@@ -284,11 +276,11 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
 class _UnsupportedFeaturePage extends StatelessWidget {
   const _UnsupportedFeaturePage({
     required this.title,
-    required this.availability,
+    required this.feature,
   });
 
   final String title;
-  final FeatureAvailability availability;
+  final BatteryFeature feature;
 
   @override
   Widget build(BuildContext context) {
@@ -298,7 +290,7 @@ class _UnsupportedFeaturePage extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            availability.details,
+            '$feature is not supported on this platform.',
             textAlign: TextAlign.center,
           ),
         ),

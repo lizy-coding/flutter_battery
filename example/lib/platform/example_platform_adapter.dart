@@ -1,42 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-
-enum ExampleFeature {
-  peerBatterySync,
-  iotNativeControls,
-}
-
-class FeatureAvailability {
-  const FeatureAvailability.supported()
-      : isSupported = true,
-        disabledLabel = '',
-        details = '';
-
-  const FeatureAvailability.unsupported({
-    required this.disabledLabel,
-    required this.details,
-  }) : isSupported = false;
-
-  final bool isSupported;
-  final String disabledLabel;
-  final String details;
-}
-
-class UnsupportedPlatformFeatureException implements Exception {
-  UnsupportedPlatformFeatureException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
-}
+import 'package:flutter_battery/flutter_battery.dart';
 
 abstract class ExamplePlatformAdapter {
   const ExamplePlatformAdapter();
 
   String get platformName;
 
-  FeatureAvailability availabilityFor(ExampleFeature feature);
+  BatteryPlatformCapabilities get capabilities;
 
   Stream<Object?> get iotEvents;
 
@@ -61,9 +32,20 @@ class AndroidExamplePlatformAdapter extends ExamplePlatformAdapter {
   String get platformName => 'android';
 
   @override
-  FeatureAvailability availabilityFor(ExampleFeature feature) {
-    return const FeatureAvailability.supported();
-  }
+  BatteryPlatformCapabilities get capabilities =>
+      const BatteryPlatformCapabilities(features: {
+        BatteryFeature.batteryLevel: true,
+        BatteryFeature.batteryInfo: true,
+        BatteryFeature.batteryHealth: true,
+        BatteryFeature.batteryLevelStream: true,
+        BatteryFeature.batteryInfoStream: true,
+        BatteryFeature.batteryHealthStream: true,
+        BatteryFeature.lowBatteryMonitoring: true,
+        BatteryFeature.nativeNotifications: true,
+        BatteryFeature.scheduledNotifications: true,
+        BatteryFeature.blePeerSync: true,
+        BatteryFeature.iotExampleBridge: true,
+      });
 
   @override
   Stream<Object?> get iotEvents => _iotEvent.receiveBroadcastStream();
@@ -81,12 +63,20 @@ class UnsupportedExamplePlatformAdapter extends ExamplePlatformAdapter {
   final String platformName;
 
   @override
-  FeatureAvailability availabilityFor(ExampleFeature feature) {
-    return FeatureAvailability.unsupported(
-      disabledLabel: '当前平台不可用',
-      details: '${_featureName(feature)} 仅支持 Android 原生桥接，当前平台为 $platformName。',
-    );
-  }
+  BatteryPlatformCapabilities get capabilities =>
+      const BatteryPlatformCapabilities(features: {
+        BatteryFeature.batteryLevel: true,
+        BatteryFeature.batteryInfo: true,
+        BatteryFeature.batteryHealth: true,
+        BatteryFeature.batteryLevelStream: true,
+        BatteryFeature.batteryInfoStream: true,
+        BatteryFeature.batteryHealthStream: true,
+        BatteryFeature.lowBatteryMonitoring: true,
+        BatteryFeature.nativeNotifications: false,
+        BatteryFeature.scheduledNotifications: false,
+        BatteryFeature.blePeerSync: false,
+        BatteryFeature.iotExampleBridge: false,
+      });
 
   @override
   Stream<Object?> get iotEvents {
@@ -97,17 +87,9 @@ class UnsupportedExamplePlatformAdapter extends ExamplePlatformAdapter {
 
   @override
   Future<void> invokeIotMethod(String method, [Object? arguments]) {
-    throw UnsupportedPlatformFeatureException(
-      availabilityFor(ExampleFeature.iotNativeControls).details,
+    throw UnsupportedBatteryFeatureException(
+      BatteryFeature.iotExampleBridge,
+      'IoT native controls are Android-only. Current platform: $platformName.',
     );
-  }
-
-  String _featureName(ExampleFeature feature) {
-    switch (feature) {
-      case ExampleFeature.peerBatterySync:
-        return '蓝牙电量同步';
-      case ExampleFeature.iotNativeControls:
-        return 'IoT native controls';
-    }
   }
 }

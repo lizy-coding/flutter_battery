@@ -1,6 +1,10 @@
 import 'flutter_battery_platform_interface.dart';
+import 'src/battery_channel_contract.dart';
+import 'src/platform_capabilities.dart';
 export 'battery_animation.dart';
 export 'peer_battery_service.dart';
+export 'src/battery_channel_contract.dart';
+export 'src/platform_capabilities.dart';
 
 /// 电池状态枚举
 enum BatteryState {
@@ -245,6 +249,15 @@ class FlutterBattery {
   Future<String?> getPlatformVersion() {
     return FlutterBatteryPlatform.instance.getPlatformVersion();
   }
+
+  Future<BatteryPlatformCapabilities> getPlatformCapabilities() {
+    return FlutterBatteryPlatform.instance.getPlatformCapabilities();
+  }
+
+  Future<bool> isFeatureSupported(BatteryFeature feature) async {
+    final capabilities = await getPlatformCapabilities();
+    return capabilities.isSupported(feature);
+  }
   
   /// 获取电池电量百分比
   Future<int?> getBatteryLevel() {
@@ -273,37 +286,42 @@ class FlutterBattery {
     return FlutterBatteryPlatform.instance.batteryStream;
   }
   
-  /// 获取格式化的电池信息流
+  static int _normalizeLevel(Map<String, dynamic> event) {
+    final level = event[BatteryPayloadKeys.level] as int?;
+    final batteryLevel = event[BatteryPayloadKeys.batteryLevel] as int?;
+    if (level != null && level >= 0) return level;
+    if (batteryLevel != null && batteryLevel >= 0) return batteryLevel;
+    final type = event[BatteryPayloadKeys.type] as String?;
+    if (type == BatteryEventTypes.batteryUnavailable) return 0;
+    return level ?? batteryLevel ?? 0;
+  }
+
   Stream<BatteryInfo> get batteryInfoStream {
     return batteryStream.where((event) {
-      final type = event['type'];
-      return type == null || type == 'BATTERY_INFO';
+      final type = event[BatteryPayloadKeys.type];
+      return type == null || type == BatteryEventTypes.batteryInfo;
     }).map((event) {
-      // 检查是否包含完整的电池信息
-      if (event.containsKey('type') && event['type'] == 'BATTERY_INFO') {
+      if (event[BatteryPayloadKeys.type] == BatteryEventTypes.batteryInfo) {
         return BatteryInfo.fromMap(event);
       }
-      
-      // 兼容简单电池电量信息
-      final int level = event['batteryLevel'] as int? ?? 0;
-      final int timestamp = event['timestamp'] as int? ?? DateTime.now().millisecondsSinceEpoch;
-      
+      final level = FlutterBattery._normalizeLevel(event);
+      final timestamp = event[BatteryPayloadKeys.timestamp] as int? ??
+          DateTime.now().millisecondsSinceEpoch;
       return BatteryInfo(
         level: level,
-        isCharging: false,
-        temperature: 0.0,
-        voltage: 0.0,
+        isCharging: event[BatteryPayloadKeys.isCharging] as bool? ?? false,
+        temperature: (event[BatteryPayloadKeys.temperature] as num?)?.toDouble() ?? 0.0,
+        voltage: (event[BatteryPayloadKeys.voltage] as num?)?.toDouble() ?? 0.0,
         state: level <= 20 ? BatteryState.LOW : BatteryState.NORMAL,
         timestamp: timestamp,
       );
     });
   }
 
-  /// 电池健康信息流
   Stream<BatteryHealth> get batteryHealthStream {
-    return batteryStream.where((event) => event['type'] == 'BATTERY_HEALTH').map(
-          (event) => BatteryHealth.fromMap(Map<String, dynamic>.from(event)),
-        );
+    return batteryStream
+        .where((event) => event[BatteryPayloadKeys.type] == BatteryEventTypes.batteryHealth)
+        .map((event) => BatteryHealth.fromMap(Map<String, dynamic>.from(event)));
   }
   
   /// 配置所有电池相关回调
