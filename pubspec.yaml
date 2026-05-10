@@ -37,8 +37,6 @@ flutter:
       android:
         package: com.example.flutter_battery
         pluginClass: FlutterBatteryPlugin
-      ios:
-        pluginClass: FlutterBatteryPlugin
       macos:
         pluginClass: FlutterBatteryPlugin
 

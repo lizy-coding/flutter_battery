@@ -53,8 +53,10 @@ class _SlavePageState extends State<SlavePage> {
             Card(
               child: ListTile(
                 leading: const Icon(Icons.sensors),
-                title: Text('本机电量（Slave）：${localBattery >= 0 ? '$localBattery%' : '--'}'),
-                subtitle: Text('主机电量（对方）：${remoteBattery != null ? '$remoteBattery%' : '--'}'),
+                title: Text(
+                    '本机电量（Slave）：${localBattery >= 0 ? '$localBattery%' : '--'}'),
+                subtitle: Text(
+                    '主机电量（对方）：${remoteBattery != null ? '$remoteBattery%' : '--'}'),
                 trailing: connected
                     ? const Chip(
                         label: Text('主机已连接'),

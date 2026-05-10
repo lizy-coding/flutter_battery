@@ -111,7 +111,8 @@ class MockFlutterBatteryPlatform
   }
 
   @override
-  Future<bool?> setPushInterval({required int intervalMs, bool enableDebounce = true}) {
+  Future<bool?> setPushInterval(
+      {required int intervalMs, bool enableDebounce = true}) {
     return Future.value(true);
   }
 
@@ -149,10 +150,12 @@ class MockFlutterBatteryPlatform
   }
 
   @override
-  void setBatteryInfoChangeCallback(Function(Map<String, dynamic> batteryInfo) callback) {}
+  void setBatteryInfoChangeCallback(
+      Function(Map<String, dynamic> batteryInfo) callback) {}
 
   @override
-  void setBatteryHealthChangeCallback(Function(Map<String, dynamic> batteryHealth) callback) {}
+  void setBatteryHealthChangeCallback(
+      Function(Map<String, dynamic> batteryHealth) callback) {}
 
   @override
   Future<bool?> startBatteryInfoListening({int intervalMs = 5000}) {
@@ -226,7 +229,8 @@ class MockFlutterBatteryPlatform
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final FlutterBatteryPlatform initialPlatform = FlutterBatteryPlatform.instance;
+  final FlutterBatteryPlatform initialPlatform =
+      FlutterBatteryPlatform.instance;
 
   setUp(() {
     final fakePlatform = MockFlutterBatteryPlatform();
@@ -246,7 +250,8 @@ void main() {
   });
 
   test('getPlatformCapabilities returns capabilities', () async {
-    final caps = await FlutterBatteryPlatform.instance.getPlatformCapabilities();
+    final caps =
+        await FlutterBatteryPlatform.instance.getPlatformCapabilities();
     expect(caps, isA<BatteryPlatformCapabilities>());
     expect(caps.isSupported(BatteryFeature.batteryLevel), true);
     expect(caps.isSupported(BatteryFeature.blePeerSync), true);
@@ -312,7 +317,8 @@ void main() {
   });
 
   test('configureBatteryMonitor returns expected map', () async {
-    final result = await FlutterBatteryPlatform.instance.configureBatteryMonitor(
+    final result =
+        await FlutterBatteryPlatform.instance.configureBatteryMonitor(
       monitorBatteryLevel: true,
       monitorBatteryInfo: true,
       intervalMs: 2000,
@@ -357,14 +363,16 @@ void main() {
   });
 
   test('getBatteryOptimizationTips returns non-empty list', () async {
-    final tips = await FlutterBatteryPlatform.instance.getBatteryOptimizationTips();
+    final tips =
+        await FlutterBatteryPlatform.instance.getBatteryOptimizationTips();
     expect(tips, isA<List<String>>());
     expect(tips, isNotEmpty);
     expect(tips.length, 3);
   });
 
   test('batteryStream emits valid data', () async {
-    final batteryEvent = await FlutterBatteryPlatform.instance.batteryStream.first;
+    final batteryEvent =
+        await FlutterBatteryPlatform.instance.batteryStream.first;
     expect(batteryEvent, isA<Map<String, dynamic>>());
     expect(batteryEvent['batteryLevel'], 75);
     expect(batteryEvent['timestamp'], isA<int>());

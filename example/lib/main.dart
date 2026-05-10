@@ -196,19 +196,20 @@ class _FlutterBatteryExampleAppState extends State<FlutterBatteryExampleApp> {
       case AppRoutes.iotControls:
         return MaterialPageRoute(
           settings: settings,
-          builder: (_) => _capabilities.isSupported(BatteryFeature.iotExampleBridge)
-              ? IotControlsPage(
-                  startScan: _startScan,
-                  stopScan: _stopScan,
-                  connect: _connect,
-                  disconnect: _disconnect,
-                  startSync: _startSync,
-                  stopSync: _stopSync,
-                )
-              : const _UnsupportedFeaturePage(
-                  title: 'IoT native controls',
-                  feature: BatteryFeature.iotExampleBridge,
-                ),
+          builder: (_) =>
+              _capabilities.isSupported(BatteryFeature.iotExampleBridge)
+                  ? IotControlsPage(
+                      startScan: _startScan,
+                      stopScan: _stopScan,
+                      connect: _connect,
+                      disconnect: _disconnect,
+                      startSync: _startSync,
+                      stopSync: _stopSync,
+                    )
+                  : const _UnsupportedFeaturePage(
+                      title: 'IoT native controls',
+                      feature: BatteryFeature.iotExampleBridge,
+                    ),
         );
       case AppRoutes.eventLog:
         return MaterialPageRoute(

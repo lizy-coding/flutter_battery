@@ -33,8 +33,10 @@ class PeerBatteryState {
 }
 
 class PeerBatteryService {
-  static const MethodChannel _methodChannel = MethodChannel(BatteryChannelNames.peerMethods);
-  static const EventChannel _eventChannel = EventChannel(BatteryChannelNames.peerEvents);
+  static const MethodChannel _methodChannel =
+      MethodChannel(BatteryChannelNames.peerMethods);
+  static const EventChannel _eventChannel =
+      EventChannel(BatteryChannelNames.peerEvents);
 
   Stream<PeerBatteryState>? _stream;
 
@@ -85,7 +87,8 @@ class PeerBatteryService {
 
   Future<void> masterConnectToDevice(String deviceId) async {
     try {
-      await _methodChannel.invokeMethod(BatteryMethodNames.masterConnectToDevice, {
+      await _methodChannel
+          .invokeMethod(BatteryMethodNames.masterConnectToDevice, {
         'deviceId': deviceId,
       });
     } on MissingPluginException {

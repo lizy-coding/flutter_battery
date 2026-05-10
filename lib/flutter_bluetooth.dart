@@ -3,7 +3,11 @@ library flutter_bluetooth;
 import 'flutter_bluetooth_platform_interface.dart';
 
 export 'flutter_bluetooth_platform_interface.dart'
-    show BleDevice, BleConnectionEvent, BleConnectionState, FlutterBluetoothPlatform;
+    show
+        BleDevice,
+        BleConnectionEvent,
+        BleConnectionState,
+        FlutterBluetoothPlatform;
 
 class FlutterBluetooth {
   FlutterBluetooth._();
@@ -22,7 +26,8 @@ class FlutterBluetooth {
 
   Future<void> stopScan() => _platform.stopScan();
 
-  Stream<BleConnectionEvent> get connectionEvents => _platform.connectionEvents();
+  Stream<BleConnectionEvent> get connectionEvents =>
+      _platform.connectionEvents();
 
   Future<void> connect(String deviceId, {bool autoConnect = false}) =>
       _platform.connect(deviceId, autoConnect: autoConnect);

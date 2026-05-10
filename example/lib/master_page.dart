@@ -34,7 +34,8 @@ class _MasterPageState extends State<MasterPage> {
       if (!mounted) return;
       setState(() => _state = state);
     });
-    _scanSub = _bluetooth.scanDevices(serviceUuid: _peerServiceUuid).listen((devices) {
+    _scanSub =
+        _bluetooth.scanDevices(serviceUuid: _peerServiceUuid).listen((devices) {
       if (!mounted) return;
       final merged = <String, BleDevice>{for (final d in _devices) d.id: d};
       for (final device in devices) {
@@ -85,7 +86,8 @@ class _MasterPageState extends State<MasterPage> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.battery_std_outlined),
-              title: Text('本机电量（Master）：${localBattery >= 0 ? '$localBattery%' : '--'}'),
+              title: Text(
+                  '本机电量（Master）：${localBattery >= 0 ? '$localBattery%' : '--'}'),
               subtitle: Text(
                 '对方电量（Slave）：${remoteBattery != null ? '$remoteBattery%' : '--'}',
               ),

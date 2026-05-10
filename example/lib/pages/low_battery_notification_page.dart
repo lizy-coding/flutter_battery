@@ -9,11 +9,14 @@ class LowBatteryNotificationPage extends StatefulWidget {
   final FlutterBattery plugin;
 
   @override
-  State<LowBatteryNotificationPage> createState() => _LowBatteryNotificationPageState();
+  State<LowBatteryNotificationPage> createState() =>
+      _LowBatteryNotificationPageState();
 }
 
-class _LowBatteryNotificationPageState extends State<LowBatteryNotificationPage> {
-  final TextEditingController _titleController = TextEditingController(text: '电池电量低');
+class _LowBatteryNotificationPageState
+    extends State<LowBatteryNotificationPage> {
+  final TextEditingController _titleController =
+      TextEditingController(text: '电池电量低');
   final TextEditingController _messageController =
       TextEditingController(text: '当前电池电量已低于预设阈值，请注意充电');
 
@@ -50,13 +53,17 @@ class _LowBatteryNotificationPageState extends State<LowBatteryNotificationPage>
         BatteryLevelMonitorConfig(
           enable: enable,
           threshold: _threshold.round(),
-          title: _titleController.text.trim().isEmpty ? '电池电量低' : _titleController.text.trim(),
+          title: _titleController.text.trim().isEmpty
+              ? '电池电量低'
+              : _titleController.text.trim(),
           message: _messageController.text.trim().isEmpty
               ? '当前电池电量已低于预设阈值，请注意充电'
               : _messageController.text.trim(),
           intervalMinutes: _intervalMinutes.round(),
           useFlutterRendering: _useFlutterRendering,
-          onLowBattery: _useFlutterRendering ? (int level) => _showSnack('电量低至 $level%') : null,
+          onLowBattery: _useFlutterRendering
+              ? (int level) => _showSnack('电量低至 $level%')
+              : null,
         ),
       );
 
@@ -64,9 +71,7 @@ class _LowBatteryNotificationPageState extends State<LowBatteryNotificationPage>
       setState(() {
         _monitoringEnabled = enable && (success ?? false);
         _status = success == true
-            ? (enable
-                ? '监控已开启，低于 ${_threshold.round()}% 将通过系统通知提示'
-                : '监控已关闭')
+            ? (enable ? '监控已开启，低于 ${_threshold.round()}% 将通过系统通知提示' : '监控已关闭')
             : '操作未生效，请检查日志';
       });
     } catch (err) {
@@ -97,7 +102,8 @@ class _LowBatteryNotificationPageState extends State<LowBatteryNotificationPage>
       );
       if (!mounted) return;
       setState(() {
-        _status = ok == true ? '通知已${delayMinutes == 0 ? '发送' : '调度'}' : '通知触发失败';
+        _status =
+            ok == true ? '通知已${delayMinutes == 0 ? '发送' : '调度'}' : '通知触发失败';
       });
     } catch (err) {
       if (!mounted) return;
@@ -142,7 +148,10 @@ class _LowBatteryNotificationPageState extends State<LowBatteryNotificationPage>
                     value: _useFlutterRendering,
                     title: const Text('同时使用 Flutter 回调'),
                     subtitle: const Text('打开后低电量会先回调 Dart，关闭则直接走原生系统通知'),
-                    onChanged: _busy ? null : (value) => setState(() => _useFlutterRendering = value),
+                    onChanged: _busy
+                        ? null
+                        : (value) =>
+                            setState(() => _useFlutterRendering = value),
                   ),
                   const SizedBox(height: 12),
                   _LabeledSlider(
@@ -152,7 +161,9 @@ class _LowBatteryNotificationPageState extends State<LowBatteryNotificationPage>
                     min: 5,
                     max: 50,
                     divisions: 9,
-                    onChanged: _busy ? null : (value) => setState(() => _threshold = value),
+                    onChanged: _busy
+                        ? null
+                        : (value) => setState(() => _threshold = value),
                   ),
                   const SizedBox(height: 8),
                   _LabeledSlider(
@@ -162,7 +173,9 @@ class _LowBatteryNotificationPageState extends State<LowBatteryNotificationPage>
                     min: 1,
                     max: 60,
                     divisions: 59,
-                    onChanged: _busy ? null : (value) => setState(() => _intervalMinutes = value),
+                    onChanged: _busy
+                        ? null
+                        : (value) => setState(() => _intervalMinutes = value),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -198,7 +211,9 @@ class _LowBatteryNotificationPageState extends State<LowBatteryNotificationPage>
                 label: const Text('开启监控'),
               ),
               OutlinedButton.icon(
-                onPressed: (_busy || !_monitoringEnabled) ? null : () => _toggleMonitoring(false),
+                onPressed: (_busy || !_monitoringEnabled)
+                    ? null
+                    : () => _toggleMonitoring(false),
                 icon: const Icon(Icons.stop),
                 label: const Text('停止监控'),
               ),
@@ -208,7 +223,8 @@ class _LowBatteryNotificationPageState extends State<LowBatteryNotificationPage>
                 label: const Text('立即测试通知'),
               ),
               OutlinedButton.icon(
-                onPressed: _busy ? null : () => _sendTestNotification(delayMinutes: 1),
+                onPressed:
+                    _busy ? null : () => _sendTestNotification(delayMinutes: 1),
                 icon: const Icon(Icons.schedule),
                 label: const Text('1 分钟后提醒'),
               ),

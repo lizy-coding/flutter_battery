@@ -176,11 +176,14 @@ class _DashboardPageState extends State<DashboardPage> {
                         ? '选择主/从机后进行电量互通'
                         : '当前平台不支持',
                   ),
-                  trailing: widget.capabilities.isSupported(BatteryFeature.blePeerSync)
+                  trailing: widget.capabilities
+                          .isSupported(BatteryFeature.blePeerSync)
                       ? const Icon(Icons.chevron_right)
                       : const Icon(Icons.block_outlined),
-                  enabled: widget.capabilities.isSupported(BatteryFeature.blePeerSync),
-                  onTap: widget.capabilities.isSupported(BatteryFeature.blePeerSync)
+                  enabled: widget.capabilities
+                      .isSupported(BatteryFeature.blePeerSync),
+                  onTap: widget.capabilities
+                          .isSupported(BatteryFeature.blePeerSync)
                       ? widget.onOpenPeerBatterySync
                       : null,
                 ),
@@ -189,15 +192,19 @@ class _DashboardPageState extends State<DashboardPage> {
                   leading: const Icon(Icons.memory_outlined),
                   title: const Text('IoT native controls'),
                   subtitle: Text(
-                    widget.capabilities.isSupported(BatteryFeature.iotExampleBridge)
+                    widget.capabilities
+                            .isSupported(BatteryFeature.iotExampleBridge)
                         ? 'Scan, connect, and sync via MethodChannel'
                         : '当前平台不支持',
                   ),
-                  trailing: widget.capabilities.isSupported(BatteryFeature.iotExampleBridge)
+                  trailing: widget.capabilities
+                          .isSupported(BatteryFeature.iotExampleBridge)
                       ? const Icon(Icons.chevron_right)
                       : const Icon(Icons.block_outlined),
-                  enabled: widget.capabilities.isSupported(BatteryFeature.iotExampleBridge),
-                  onTap: widget.capabilities.isSupported(BatteryFeature.iotExampleBridge)
+                  enabled: widget.capabilities
+                      .isSupported(BatteryFeature.iotExampleBridge),
+                  onTap: widget.capabilities
+                          .isSupported(BatteryFeature.iotExampleBridge)
                       ? widget.onOpenIotControls
                       : null,
                 ),

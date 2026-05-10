@@ -26,13 +26,15 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   Future<dynamic> _handleMethodCall(MethodCall call) async {
     switch (call.method) {
       case BatteryMethodNames.onLowBattery:
-        final int batteryLevel = call.arguments[BatteryPayloadKeys.batteryLevel] as int;
+        final int batteryLevel =
+            call.arguments[BatteryPayloadKeys.batteryLevel] as int;
         if (_lowBatteryCallback != null) {
           _lowBatteryCallback!(batteryLevel);
         }
         return true;
       case BatteryMethodNames.onBatteryLevelChanged:
-        final int batteryLevel = call.arguments[BatteryPayloadKeys.batteryLevel] as int;
+        final int batteryLevel =
+            call.arguments[BatteryPayloadKeys.batteryLevel] as int;
         if (_batteryLevelChangeCallback != null) {
           _batteryLevelChangeCallback!(batteryLevel);
         }
@@ -70,7 +72,8 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
       if (result == null) {
         return const BatteryPlatformCapabilities(features: {});
       }
-      return BatteryPlatformCapabilities.fromMap(result.cast<String, dynamic>());
+      return BatteryPlatformCapabilities.fromMap(
+          result.cast<String, dynamic>());
     } on MissingPluginException {
       return const BatteryPlatformCapabilities(features: {});
     }
@@ -90,9 +93,12 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
 
   @override
   Future<Map<String, dynamic>> getBatteryInfo() async {
-    final result = await methodChannel.invokeMapMethod(BatteryMethodNames.getBatteryInfo);
+    final result =
+        await methodChannel.invokeMapMethod(BatteryMethodNames.getBatteryInfo);
     if (result == null) {
-      return <String, dynamic>{BatteryPayloadKeys.error: 'Failed to get battery info'};
+      return <String, dynamic>{
+        BatteryPayloadKeys.error: 'Failed to get battery info'
+      };
     }
     return result.cast<String, dynamic>();
   }
@@ -108,9 +114,12 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
 
   @override
   Future<Map<String, dynamic>> getBatteryHealth() async {
-    final result = await methodChannel.invokeMapMethod(BatteryMethodNames.getBatteryHealth);
+    final result = await methodChannel
+        .invokeMapMethod(BatteryMethodNames.getBatteryHealth);
     if (result == null) {
-      return <String, dynamic>{BatteryPayloadKeys.error: 'Failed to get battery health'};
+      return <String, dynamic>{
+        BatteryPayloadKeys.error: 'Failed to get battery health'
+      };
     }
     return result.cast<String, dynamic>();
   }
@@ -126,12 +135,14 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
   }
 
   @override
-  void setBatteryInfoChangeCallback(Function(Map<String, dynamic> batteryInfo) callback) {
+  void setBatteryInfoChangeCallback(
+      Function(Map<String, dynamic> batteryInfo) callback) {
     _batteryInfoChangeCallback = callback;
   }
 
   @override
-  void setBatteryHealthChangeCallback(Function(Map<String, dynamic> batteryHealth) callback) {
+  void setBatteryHealthChangeCallback(
+      Function(Map<String, dynamic> batteryHealth) callback) {
     _batteryHealthChangeCallback = callback;
   }
 
@@ -163,7 +174,8 @@ class MethodChannelFlutterBattery extends FlutterBatteryPlatform {
 
   @override
   Future<bool?> startBatteryHealthListening({int intervalMs = 10000}) async {
-    final result = await _invoke(BatteryMethodNames.startBatteryHealthListening, {
+    final result =
+        await _invoke(BatteryMethodNames.startBatteryHealthListening, {
       BatteryPayloadKeys.intervalMs: intervalMs,
     });
     return result as bool?;

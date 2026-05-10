@@ -4,7 +4,7 @@ import 'package:flutter_battery_example/pages/dashboard_page.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  final unsupportedCaps = const BatteryPlatformCapabilities(features: {
+  const unsupportedCaps = BatteryPlatformCapabilities(features: {
     BatteryFeature.batteryLevel: true,
     BatteryFeature.batteryInfo: true,
     BatteryFeature.batteryHealth: true,

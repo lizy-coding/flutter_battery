@@ -3,7 +3,8 @@ class BatteryChannelNames {
   static const String eventChannel = 'flutter_battery/battery_stream';
   static const String bleMethods = 'flutter_battery/ble_methods';
   static const String bleScanEvents = 'flutter_battery/ble_scan_events';
-  static const String bleConnectionEvents = 'flutter_battery/ble_connection_events';
+  static const String bleConnectionEvents =
+      'flutter_battery/ble_connection_events';
   static const String peerMethods = 'flutter_battery/peer_methods';
   static const String peerEvents = 'flutter_battery/peer_events';
 }
@@ -19,7 +20,8 @@ class BatteryMethodNames {
   static const String stopBatteryLevelListening = 'stopBatteryLevelListening';
   static const String startBatteryInfoListening = 'startBatteryInfoListening';
   static const String stopBatteryInfoListening = 'stopBatteryInfoListening';
-  static const String startBatteryHealthListening = 'startBatteryHealthListening';
+  static const String startBatteryHealthListening =
+      'startBatteryHealthListening';
   static const String stopBatteryHealthListening = 'stopBatteryHealthListening';
   static const String setPushInterval = 'setPushInterval';
   static const String setBatteryLevelThreshold = 'setBatteryLevelThreshold';
