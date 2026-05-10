@@ -27,9 +27,11 @@ class BatteryDetailsPage extends StatelessWidget {
         ],
       ),
       body: AnimatedBuilder(
-        animation: Listenable.merge([levelListenable, infoListenable, healthListenable]),
+        animation: Listenable.merge(
+            [levelListenable, infoListenable, healthListenable]),
         builder: (context, _) {
-          final level = levelListenable.value ?? infoListenable.value?.level ?? 0;
+          final level =
+              levelListenable.value ?? infoListenable.value?.level ?? 0;
           final info = infoListenable.value;
           final health = healthListenable.value;
           return ListView(
@@ -56,20 +58,25 @@ class BatteryDetailsPage extends StatelessWidget {
                     ListTile(
                       leading: const Icon(Icons.thermostat_auto_outlined),
                       title: const Text('Temperature'),
-                      subtitle: Text(info != null ? '${info.temperature.toStringAsFixed(1)}°C' : '--'),
+                      subtitle: Text(info != null
+                          ? '${info.temperature.toStringAsFixed(1)}°C'
+                          : '--'),
                     ),
                     const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.speed_outlined),
                       title: const Text('Voltage'),
-                      subtitle: Text(info != null ? '${info.voltage.toStringAsFixed(2)}V' : '--'),
+                      subtitle: Text(info != null
+                          ? '${info.voltage.toStringAsFixed(2)}V'
+                          : '--'),
                     ),
                     const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.electric_bike_outlined),
                       title: const Text('State'),
                       subtitle: Text(info?.state.name ?? 'unknown'),
-                      trailing: Text(info?.isCharging == true ? 'Charging' : 'Idle'),
+                      trailing:
+                          Text(info?.isCharging == true ? 'Charging' : 'Idle'),
                     ),
                   ],
                 ),
@@ -96,7 +103,9 @@ class BatteryDetailsPage extends StatelessWidget {
                             ),
                             const SizedBox(height: 6),
                             ...health.recommendations
-                                .map((tip) => Text('• $tip', style: Theme.of(context).textTheme.bodySmall))
+                                .map((tip) => Text('• $tip',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall))
                                 .toList(),
                           ],
                         ),

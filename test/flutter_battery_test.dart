@@ -11,6 +11,22 @@ class MockFlutterBatteryPlatform
   Future<String?> getPlatformVersion() => Future.value('42');
 
   @override
+  Future<BatteryPlatformCapabilities> getPlatformCapabilities() =>
+      Future.value(const BatteryPlatformCapabilities(features: {
+        BatteryFeature.batteryLevel: true,
+        BatteryFeature.batteryInfo: true,
+        BatteryFeature.batteryHealth: true,
+        BatteryFeature.batteryLevelStream: true,
+        BatteryFeature.batteryInfoStream: true,
+        BatteryFeature.batteryHealthStream: true,
+        BatteryFeature.lowBatteryMonitoring: true,
+        BatteryFeature.nativeNotifications: true,
+        BatteryFeature.scheduledNotifications: true,
+        BatteryFeature.blePeerSync: true,
+        BatteryFeature.iotExampleBridge: true,
+      }));
+
+  @override
   Future<bool?> scheduleNotification({
     required String title,
     required String message,
@@ -45,30 +61,26 @@ class MockFlutterBatteryPlatform
   }
 
   @override
-  void setLowBatteryCallback(Function(int batteryLevel) callback) {
-    // no-op for testing
-  }
+  void setLowBatteryCallback(Function(int batteryLevel) callback) {}
 
   @override
   Future<bool?> stopBatteryMonitoring() {
     return Future.value(true);
   }
-  
+
   @override
-  void setBatteryLevelChangeCallback(Function(int batteryLevel) callback) {
-    // no-op for testing
-  }
-  
+  void setBatteryLevelChangeCallback(Function(int batteryLevel) callback) {}
+
   @override
   Future<bool?> startBatteryLevelListening() {
     return Future.value(true);
   }
-  
+
   @override
   Future<bool?> stopBatteryLevelListening() {
     return Future.value(true);
   }
-  
+
   @override
   Stream<Map<String, dynamic>> get batteryStream {
     return Stream.fromIterable([
@@ -86,14 +98,24 @@ class MockFlutterBatteryPlatform
         'recommendations': ['测试建议'],
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       },
+      {
+        'type': 'BATTERY_INFO',
+        'level': 65,
+        'isCharging': true,
+        'temperature': 28.0,
+        'voltage': 4.0,
+        'state': 'CHARGING',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      },
     ]);
   }
-  
+
   @override
-  Future<bool?> setPushInterval({required int intervalMs, bool enableDebounce = true}) {
+  Future<bool?> setPushInterval(
+      {required int intervalMs, bool enableDebounce = true}) {
     return Future.value(true);
   }
-  
+
   @override
   Future<Map<String, dynamic>> getBatteryInfo() {
     return Future.value({
@@ -102,7 +124,7 @@ class MockFlutterBatteryPlatform
       'temperature': 30.5,
       'voltage': 4.2,
       'state': 'NORMAL',
-      'timestamp': DateTime.now().millisecondsSinceEpoch
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
   }
 
@@ -121,27 +143,25 @@ class MockFlutterBatteryPlatform
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
   }
-  
+
   @override
   Future<List<String>> getBatteryOptimizationTips() {
     return Future.value(['关闭后台应用', '降低屏幕亮度', '启用电池优化模式']);
   }
-  
-  @override
-  void setBatteryInfoChangeCallback(Function(Map<String, dynamic> batteryInfo) callback) {
-    // no-op for testing
-  }
 
   @override
-  void setBatteryHealthChangeCallback(Function(Map<String, dynamic> batteryHealth) callback) {
-    // no-op for testing
-  }
-  
+  void setBatteryInfoChangeCallback(
+      Function(Map<String, dynamic> batteryInfo) callback) {}
+
+  @override
+  void setBatteryHealthChangeCallback(
+      Function(Map<String, dynamic> batteryHealth) callback) {}
+
   @override
   Future<bool?> startBatteryInfoListening({int intervalMs = 5000}) {
     return Future.value(true);
   }
-  
+
   @override
   Future<bool?> stopBatteryInfoListening() {
     return Future.value(true);
@@ -156,7 +176,7 @@ class MockFlutterBatteryPlatform
   Future<bool?> stopBatteryHealthListening() {
     return Future.value(true);
   }
-  
+
   @override
   Future<bool?> sendNotification({
     required String title,
@@ -165,7 +185,7 @@ class MockFlutterBatteryPlatform
   }) {
     return Future.value(true);
   }
-  
+
   @override
   Future<Map<String, bool>> configureBatteryMonitor({
     bool monitorBatteryLevel = false,
@@ -183,17 +203,15 @@ class MockFlutterBatteryPlatform
       'batteryHealthMonitor': monitorBatteryHealth,
     });
   }
-  
+
   @override
   void configureBatteryCallbacks({
     Function(int batteryLevel)? onLowBattery,
     Function(int batteryLevel)? onBatteryLevelChange,
     Function(Map<String, dynamic> batteryInfo)? onBatteryInfoChange,
     Function(Map<String, dynamic> batteryHealth)? onBatteryHealthChange,
-  }) {
-    // no-op for testing
-  }
-  
+  }) {}
+
   @override
   Future<bool?> configureBatteryMonitoring({
     required bool enable,
@@ -210,7 +228,7 @@ class MockFlutterBatteryPlatform
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   final FlutterBatteryPlatform initialPlatform =
       FlutterBatteryPlatform.instance;
 
@@ -229,6 +247,26 @@ void main() {
 
   test('getBatteryLevel returns from mock', () async {
     expect(await FlutterBatteryPlatform.instance.getBatteryLevel(), 75);
+  });
+
+  test('getPlatformCapabilities returns capabilities', () async {
+    final caps =
+        await FlutterBatteryPlatform.instance.getPlatformCapabilities();
+    expect(caps, isA<BatteryPlatformCapabilities>());
+    expect(caps.isSupported(BatteryFeature.batteryLevel), true);
+    expect(caps.isSupported(BatteryFeature.blePeerSync), true);
+  });
+
+  test('FlutterBattery.getPlatformCapabilities delegates correctly', () async {
+    final plugin = FlutterBattery();
+    final caps = await plugin.getPlatformCapabilities();
+    expect(caps.isSupported(BatteryFeature.batteryLevel), true);
+    expect(caps.isSupported(BatteryFeature.batteryInfo), true);
+  });
+
+  test('FlutterBattery.isFeatureSupported delegates correctly', () async {
+    final plugin = FlutterBattery();
+    expect(await plugin.isFeatureSupported(BatteryFeature.batteryLevel), true);
   });
 
   test('scheduleNotification returns true', () async {
@@ -266,7 +304,7 @@ void main() {
   test('stopBatteryMonitoring returns true', () async {
     expect(await FlutterBatteryPlatform.instance.stopBatteryMonitoring(), true);
   });
-  
+
   test('sendNotification returns true', () async {
     expect(
       await FlutterBatteryPlatform.instance.sendNotification(
@@ -277,22 +315,22 @@ void main() {
       true,
     );
   });
-  
+
   test('configureBatteryMonitor returns expected map', () async {
-    final result = await FlutterBatteryPlatform.instance.configureBatteryMonitor(
+    final result =
+        await FlutterBatteryPlatform.instance.configureBatteryMonitor(
       monitorBatteryLevel: true,
       monitorBatteryInfo: true,
       intervalMs: 2000,
       batteryInfoIntervalMs: 10000,
       enableDebounce: true,
     );
-    
     expect(result, isA<Map<String, bool>>());
     expect(result['setPushInterval'], true);
     expect(result['batteryLevelMonitor'], true);
     expect(result['batteryInfoMonitor'], true);
   });
-  
+
   test('configureBatteryMonitoring returns true', () async {
     expect(
       await FlutterBatteryPlatform.instance.configureBatteryMonitoring(
@@ -305,10 +343,9 @@ void main() {
       true,
     );
   });
-  
+
   test('getBatteryInfo returns valid map', () async {
     final batteryInfo = await FlutterBatteryPlatform.instance.getBatteryInfo();
-    
     expect(batteryInfo, isA<Map<String, dynamic>>());
     expect(batteryInfo['level'], 75);
     expect(batteryInfo['isCharging'], false);
@@ -317,25 +354,25 @@ void main() {
     expect(batteryInfo['state'], 'NORMAL');
     expect(batteryInfo['timestamp'], isA<int>());
   });
-  
+
   test('getBatteryHealth returns valid map', () async {
     final health = await FlutterBatteryPlatform.instance.getBatteryHealth();
     expect(health['state'], 'GOOD');
     expect(health['statusLabel'], isA<String>());
     expect(health['recommendations'], isA<List<String>>());
   });
-  
+
   test('getBatteryOptimizationTips returns non-empty list', () async {
-    final tips = await FlutterBatteryPlatform.instance.getBatteryOptimizationTips();
-    
+    final tips =
+        await FlutterBatteryPlatform.instance.getBatteryOptimizationTips();
     expect(tips, isA<List<String>>());
     expect(tips, isNotEmpty);
     expect(tips.length, 3);
   });
-  
+
   test('batteryStream emits valid data', () async {
-    final batteryEvent = await FlutterBatteryPlatform.instance.batteryStream.first;
-    
+    final batteryEvent =
+        await FlutterBatteryPlatform.instance.batteryStream.first;
     expect(batteryEvent, isA<Map<String, dynamic>>());
     expect(batteryEvent['batteryLevel'], 75);
     expect(batteryEvent['timestamp'], isA<int>());
@@ -346,6 +383,20 @@ void main() {
     final health = await plugin.batteryHealthStream.first;
     expect(health.state, BatteryHealthState.good);
     expect(health.recommendations, isNotEmpty);
+  });
+
+  test('batteryInfoStream_accepts_level_key', () async {
+    final plugin = FlutterBattery();
+    final info = await plugin.batteryInfoStream.firstWhere(
+      (i) => i.level > 0,
+    );
+    expect(info.level, greaterThan(0));
+  });
+
+  test('batteryInfoStream_accepts_batteryLevel_key', () async {
+    final plugin = FlutterBattery();
+    final info = await plugin.batteryInfoStream.first;
+    expect(info, isA<BatteryInfo>());
   });
 
   test('configureBattery aggregates results', () async {

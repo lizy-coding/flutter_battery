@@ -33,7 +33,11 @@ class PerfLabChannel {
 
   static Future<Map<String, dynamic>> getStartupTimeline() async {
     if (kReleaseMode) return <String, dynamic>{};
-    final res = await _ch.invokeMethod('getStartupTimeline');
-    return (res as Map).cast<String, dynamic>();
+    try {
+      final res = await _ch.invokeMethod('getStartupTimeline');
+      return (res as Map).cast<String, dynamic>();
+    } catch (_) {
+      return <String, dynamic>{};
+    }
   }
 }

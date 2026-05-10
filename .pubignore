@@ -1,0 +1,11 @@
+AGENTS.md
+example/AGENTS.md
+ARCHITECTURE_REFACTOR_PLAN.yaml
+PLUGIN_QUALITY_ROADMAP.md
+workflow_context.md
+.cursorrules
+.idea/
+*.iml
+plan/
+scripts/
+integration/channel/contracts/macos_battery_evolution_plan.yaml

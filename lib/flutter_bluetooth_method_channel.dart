@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 import 'flutter_bluetooth_platform_interface.dart';
+import 'src/battery_channel_contract.dart';
 
 class MethodChannelFlutterBluetooth extends FlutterBluetoothPlatform {
-  static const MethodChannel _methodChannel = MethodChannel('flutter_battery/ble_methods');
-  static const EventChannel _scanEventChannel = EventChannel('flutter_battery/ble_scan_events');
+  static const MethodChannel _methodChannel =
+      MethodChannel(BatteryChannelNames.bleMethods);
+  static const EventChannel _scanEventChannel =
+      EventChannel(BatteryChannelNames.bleScanEvents);
   static const EventChannel _connectionEventChannel =
-      EventChannel('flutter_battery/ble_connection_events');
+      EventChannel(BatteryChannelNames.bleConnectionEvents);
 
   Stream<List<BleDevice>>? _scanStream;
   Stream<BleConnectionEvent>? _connectionStream;
@@ -17,47 +20,47 @@ class MethodChannelFlutterBluetooth extends FlutterBluetoothPlatform {
 
   @override
   Future<bool> isBleAvailable() async {
-    final result = await _methodChannel.invokeMethod<bool>('isBleAvailable');
+    final result = await _methodChannel
+        .invokeMethod<bool>(BatteryMethodNames.isBleAvailable);
     return result ?? false;
   }
 
   @override
   Future<bool> isBleEnabled() async {
-    final result = await _methodChannel.invokeMethod<bool>('isBleEnabled');
+    final result = await _methodChannel
+        .invokeMethod<bool>(BatteryMethodNames.isBleEnabled);
     return result ?? false;
   }
 
   @override
   Stream<List<BleDevice>> scanDevices({String? serviceUuid}) {
-    _scanStream ??= _scanEventChannel.receiveBroadcastStream({'serviceUuid': serviceUuid}).map(
-          (event) {
-            final list = (event as List).cast<Object?>();
-            return list
-                .map((e) {
-                  final map = Map<String, Object?>.from(e as Map);
-                  return BleDevice.fromJson(map);
-                })
-                .toList();
-          },
-        ).asBroadcastStream();
+    _scanStream ??= _scanEventChannel
+        .receiveBroadcastStream({'serviceUuid': serviceUuid}).map((event) {
+      final list = (event as List).cast<Object?>();
+      return list.map((e) {
+        final map = Map<String, Object?>.from(e as Map);
+        return BleDevice.fromJson(map);
+      }).toList();
+    }).asBroadcastStream();
     return _scanStream!;
   }
 
   @override
   Future<void> startScan({String? serviceUuid}) async {
-    await _methodChannel.invokeMethod('startScan', {
+    await _methodChannel.invokeMethod(BatteryMethodNames.startScan, {
       'serviceUuid': serviceUuid,
     });
   }
 
   @override
   Future<void> stopScan() async {
-    await _methodChannel.invokeMethod('stopScan');
+    await _methodChannel.invokeMethod(BatteryMethodNames.stopScan);
   }
 
   @override
   Stream<BleConnectionEvent> connectionEvents() {
-    _connectionStream ??= _connectionEventChannel.receiveBroadcastStream().map((event) {
+    _connectionStream ??=
+        _connectionEventChannel.receiveBroadcastStream().map((event) {
       final map = Map<String, Object?>.from(event as Map);
       return BleConnectionEvent.fromJson(map);
     }).asBroadcastStream();
@@ -66,7 +69,7 @@ class MethodChannelFlutterBluetooth extends FlutterBluetoothPlatform {
 
   @override
   Future<void> connect(String deviceId, {bool autoConnect = false}) async {
-    await _methodChannel.invokeMethod('connect', {
+    await _methodChannel.invokeMethod(BatteryMethodNames.connect, {
       'deviceId': deviceId,
       'autoConnect': autoConnect,
     });
@@ -74,7 +77,7 @@ class MethodChannelFlutterBluetooth extends FlutterBluetoothPlatform {
 
   @override
   Future<void> disconnect([String? deviceId]) async {
-    await _methodChannel.invokeMethod('disconnect', {
+    await _methodChannel.invokeMethod(BatteryMethodNames.disconnect, {
       'deviceId': deviceId,
     });
   }
@@ -87,13 +90,16 @@ class MethodChannelFlutterBluetooth extends FlutterBluetoothPlatform {
     required List<int> value,
     bool withResponse = true,
   }) async {
-    final result = await _methodChannel.invokeMethod<bool>('writeCharacteristic', {
-      'deviceId': deviceId,
-      'serviceUuid': serviceUuid,
-      'characteristicUuid': characteristicUuid,
-      'value': value,
-      'withResponse': withResponse,
-    });
+    final result = await _methodChannel.invokeMethod<bool>(
+      BatteryMethodNames.writeCharacteristic,
+      {
+        'deviceId': deviceId,
+        'serviceUuid': serviceUuid,
+        'characteristicUuid': characteristicUuid,
+        'value': value,
+        'withResponse': withResponse,
+      },
+    );
     return result ?? false;
   }
 
@@ -103,7 +109,8 @@ class MethodChannelFlutterBluetooth extends FlutterBluetoothPlatform {
     required String serviceUuid,
     required String characteristicUuid,
   }) {
-    throw UnimplementedError('subscribeToCharacteristic is not implemented on this platform.');
+    throw UnimplementedError(
+        'subscribeToCharacteristic is not implemented on this platform.');
   }
 
   @override

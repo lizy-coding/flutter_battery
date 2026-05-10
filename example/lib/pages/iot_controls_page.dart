@@ -37,12 +37,30 @@ class IotControlsPage extends StatelessWidget {
               spacing: 12,
               runSpacing: 12,
               children: [
-                ElevatedButton.icon(onPressed: startScan, icon: const Icon(Icons.search), label: const Text('Scan')),
-                ElevatedButton.icon(onPressed: stopScan, icon: const Icon(Icons.close), label: const Text('Stop Scan')),
-                ElevatedButton.icon(onPressed: connect, icon: const Icon(Icons.usb), label: const Text('Connect')),
-                ElevatedButton.icon(onPressed: disconnect, icon: const Icon(Icons.link_off), label: const Text('Disconnect')),
-                ElevatedButton.icon(onPressed: startSync, icon: const Icon(Icons.cloud_upload_outlined), label: const Text('Start Sync')),
-                ElevatedButton.icon(onPressed: stopSync, icon: const Icon(Icons.cloud_off_outlined), label: const Text('Stop Sync')),
+                ElevatedButton.icon(
+                    onPressed: startScan,
+                    icon: const Icon(Icons.search),
+                    label: const Text('Scan')),
+                ElevatedButton.icon(
+                    onPressed: stopScan,
+                    icon: const Icon(Icons.close),
+                    label: const Text('Stop Scan')),
+                ElevatedButton.icon(
+                    onPressed: connect,
+                    icon: const Icon(Icons.usb),
+                    label: const Text('Connect')),
+                ElevatedButton.icon(
+                    onPressed: disconnect,
+                    icon: const Icon(Icons.link_off),
+                    label: const Text('Disconnect')),
+                ElevatedButton.icon(
+                    onPressed: startSync,
+                    icon: const Icon(Icons.cloud_upload_outlined),
+                    label: const Text('Start Sync')),
+                ElevatedButton.icon(
+                    onPressed: stopSync,
+                    icon: const Icon(Icons.cloud_off_outlined),
+                    label: const Text('Stop Sync')),
               ],
             ),
             const SizedBox(height: 24),

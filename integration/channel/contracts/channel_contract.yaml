@@ -1,43 +1,251 @@
-channels:
-  method:
-    name: iot/native
-    methods:
-      - id: scanDevices
-        args:
-          filters: map
-      - id: connect
-        args:
-          deviceId: string
-      - id: startTelemetry
-        args:
-          deviceId: string
-          metrics: list
-      - id: stopTelemetry
-      - id: requestBatterySnapshot
-        args:
-          deviceId: string?
-  event:
-    name: iot/stream
-    payload:
-      type: enum(telemetry|battery|connection|discovered)
-      deviceId: string?
-      timestamp: int
-      data: map
-  peer_method:
-    name: flutter_battery/peer_methods
-    methods:
-      - id: startMasterMode
-      - id: startSlaveMode
-      - id: stopMasterMode
-      - id: stopSlaveMode
-      - id: stopAllPeerModes
-      - id: masterConnectToDevice
-        args:
-          deviceId: string
-  peer_event:
-    name: flutter_battery/peer_events
-    payload:
-      role: enum(master|slave)
-      localBattery: int
-      remoteBattery: int?
-      connected: bool
+# ============================================================
+# Flutter Battery — Channel Contract
+# ============================================================
+# This file documents all method/event channels used by the
+# flutter_battery plugin and the example app.
+#
+# Plugin channels (part of the public plugin API):
+#   flutter_battery          - method channel for battery operations
+#   flutter_battery/battery_stream - event channel for battery events
+#
+# Optional plugin channels (Android-only):
+#   flutter_battery/ble_methods       - BLE method calls
+#   flutter_battery/ble_scan_events   - BLE scan event stream
+#   flutter_battery/ble_connection_events - BLE connection event stream
+#   flutter_battery/peer_methods       - peer sync method calls
+#   flutter_battery/peer_events        - peer sync event stream
+#
+# Example-only channels (NOT part of the plugin public API):
+#   iot/native  - IoT demo method channel (Android example only)
+#   iot/stream  - IoT demo event channel (Android example only)
+# ============================================================
+
+flutter_battery_method_channel:
+  name: flutter_battery
+  methods:
+    - id: getPlatformVersion
+    - id: getPlatformCapabilities
+      result: map<string,bool>
+    - id: getBatteryLevel
+      result: int?
+    - id: getBatteryInfo
+      result: map
+    - id: getBatteryHealth
+      result: map
+    - id: getBatteryOptimizationTips
+      result: list<string>
+    - id: startBatteryLevelListening
+    - id: stopBatteryLevelListening
+    - id: startBatteryInfoListening
+      args:
+        intervalMs: int?
+    - id: stopBatteryInfoListening
+    - id: startBatteryHealthListening
+      args:
+        intervalMs: int?
+    - id: stopBatteryHealthListening
+    - id: setPushInterval
+      args:
+        intervalMs: int
+        enableDebounce: bool
+    - id: setBatteryLevelThreshold
+      args:
+        threshold: int
+        title: string
+        message: string
+        intervalMinutes: int
+        useFlutterRendering: bool
+    - id: stopBatteryMonitoring
+    - id: scheduleNotification
+      args:
+        title: string
+        message: string
+        delayMinutes: int
+    - id: showNotification
+      args:
+        title: string
+        message: string
+
+flutter_battery_event_channel:
+  name: flutter_battery/battery_stream
+  event_types:
+    BATTERY_LEVEL:
+      required:
+        - type
+        - timestamp
+      optional:
+        - batteryLevel
+        - level
+        - unavailableReason
+    BATTERY_INFO:
+      required:
+        - type
+        - timestamp
+        - isCharging
+        - state
+      optional:
+        - level
+        - batteryLevel
+        - isCharged
+        - timeToFull
+        - timeToEmpty
+        - temperature
+        - voltage
+        - unavailableReason
+    BATTERY_HEALTH:
+      required:
+        - type
+        - timestamp
+        - state
+        - statusLabel
+        - isGood
+        - riskLevel
+        - recommendations
+      optional:
+        - level
+        - batteryLevel
+        - isCharging
+        - temperature
+        - voltage
+        - healthPercentage
+        - maxCapacity
+        - currentCapacity
+        - designCapacity
+        - cycleCount
+        - serialNumber
+        - manufacturer
+        - deviceName
+        - unavailableReason
+    BATTERY_UNAVAILABLE:
+      required:
+        - type
+        - timestamp
+      optional:
+        - unavailableReason
+    BATTERY_ERROR:
+      required:
+        - type
+        - timestamp
+      optional:
+        - error
+
+platform_support_matrix:
+  android:
+    batteryLevel: true
+    batteryInfo: true
+    batteryHealth: true
+    batteryLevelStream: true
+    batteryInfoStream: true
+    batteryHealthStream: true
+    lowBatteryMonitoring: true
+    nativeNotifications: true
+    scheduledNotifications: true
+    blePeerSync: true
+    iotExampleBridge: true
+  macos:
+    batteryLevel: true
+    batteryInfo: true
+    batteryHealth: true
+    batteryLevelStream: true
+    batteryInfoStream: true
+    batteryHealthStream: true
+    lowBatteryMonitoring: true
+    nativeNotifications: false
+    scheduledNotifications: false
+    blePeerSync: false
+    iotExampleBridge: false
+
+# ============================================================
+# BLE channels (optional, Android-only plugin feature)
+# ============================================================
+ble_methods:
+  name: flutter_battery/ble_methods
+  methods:
+    - id: isBleAvailable
+    - id: isBleEnabled
+    - id: startScan
+      args:
+        serviceUuid: string?
+    - id: stopScan
+    - id: connect
+      args:
+        deviceId: string
+        autoConnect: bool
+    - id: disconnect
+      args:
+        deviceId: string?
+    - id: writeCharacteristic
+      args:
+        deviceId: string
+        serviceUuid: string
+        characteristicUuid: string
+        value: list<int>
+        withResponse: bool
+
+ble_scan_events:
+  name: flutter_battery/ble_scan_events
+  payload:
+    type: list<map>
+
+ble_connection_events:
+  name: flutter_battery/ble_connection_events
+  payload:
+    state: enum(disconnected|connecting|connected|disconnecting)
+    deviceId: string
+    error: string?
+
+# ============================================================
+# Peer sync channels (optional, Android-only plugin feature)
+# ============================================================
+peer_methods:
+  name: flutter_battery/peer_methods
+  methods:
+    - id: startMasterMode
+    - id: startSlaveMode
+    - id: stopMasterMode
+    - id: stopSlaveMode
+    - id: stopAllPeerModes
+    - id: masterConnectToDevice
+      args:
+        deviceId: string
+
+peer_events:
+  name: flutter_battery/peer_events
+  payload:
+    role: enum(master|slave)
+    localBattery: int
+    remoteBattery: int?
+    connected: bool
+
+# ============================================================
+# Example-only channels (NOT part of plugin public API)
+# These channels are used by the example app for IoT demo
+# purposes and are only available on Android.
+# ============================================================
+example_iot_native:
+  name: iot/native
+  status: example_only_android
+  methods:
+    - id: scanDevices
+      args:
+        filters: map
+    - id: connect
+      args:
+        deviceId: string
+    - id: startTelemetry
+      args:
+        deviceId: string
+        metrics: list
+    - id: stopTelemetry
+    - id: requestBatterySnapshot
+      args:
+        deviceId: string?
+
+example_iot_stream:
+  name: iot/stream
+  status: example_only_android
+  payload:
+    type: enum(telemetry|battery|connection|discovered)
+    deviceId: string?
+    timestamp: int
+    data: map

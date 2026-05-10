@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+import 'src/battery_channel_contract.dart';
+import 'src/platform_capabilities.dart';
+
 enum PeerRole { master, slave }
 
 class PeerBatteryState {
@@ -30,8 +33,10 @@ class PeerBatteryState {
 }
 
 class PeerBatteryService {
-  static const MethodChannel _methodChannel = MethodChannel('flutter_battery/peer_methods');
-  static const EventChannel _eventChannel = EventChannel('flutter_battery/peer_events');
+  static const MethodChannel _methodChannel =
+      MethodChannel(BatteryChannelNames.peerMethods);
+  static const EventChannel _eventChannel =
+      EventChannel(BatteryChannelNames.peerEvents);
 
   Stream<PeerBatteryState>? _stream;
 
@@ -45,7 +50,12 @@ class PeerBatteryService {
 
   Future<void> startAsMaster() async {
     try {
-      await _methodChannel.invokeMethod('startMasterMode');
+      await _methodChannel.invokeMethod(BatteryMethodNames.startMasterMode);
+    } on MissingPluginException {
+      throw UnsupportedBatteryFeatureException(
+        BatteryFeature.blePeerSync,
+        'BLE peer sync is not supported on this platform.',
+      );
     } on PlatformException catch (e) {
       if (e.code != 'PERMISSION_REQUIRED') rethrow;
     }
@@ -53,21 +63,39 @@ class PeerBatteryService {
 
   Future<void> startAsSlave() async {
     try {
-      await _methodChannel.invokeMethod('startSlaveMode');
+      await _methodChannel.invokeMethod(BatteryMethodNames.startSlaveMode);
+    } on MissingPluginException {
+      throw UnsupportedBatteryFeatureException(
+        BatteryFeature.blePeerSync,
+        'BLE peer sync is not supported on this platform.',
+      );
     } on PlatformException catch (e) {
       if (e.code != 'PERMISSION_REQUIRED') rethrow;
     }
   }
 
   Future<void> stop() async {
-    await _methodChannel.invokeMethod('stopAllPeerModes');
+    try {
+      await _methodChannel.invokeMethod(BatteryMethodNames.stopAllPeerModes);
+    } on MissingPluginException {
+      throw UnsupportedBatteryFeatureException(
+        BatteryFeature.blePeerSync,
+        'BLE peer sync is not supported on this platform.',
+      );
+    }
   }
 
   Future<void> masterConnectToDevice(String deviceId) async {
     try {
-      await _methodChannel.invokeMethod('masterConnectToDevice', {
+      await _methodChannel
+          .invokeMethod(BatteryMethodNames.masterConnectToDevice, {
         'deviceId': deviceId,
       });
+    } on MissingPluginException {
+      throw UnsupportedBatteryFeatureException(
+        BatteryFeature.blePeerSync,
+        'BLE peer sync is not supported on this platform.',
+      );
     } on PlatformException catch (e) {
       if (e.code != 'PERMISSION_REQUIRED') rethrow;
     }
