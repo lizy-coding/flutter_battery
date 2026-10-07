@@ -1,0 +1,471 @@
+schema: codex.refactor_plan.v1
+id: flutter_battery.architecture_platform_refactor
+repo: flutter_battery
+generated_at: 2026-05-10
+objective:
+  primary: isolate_platform_differences
+  secondary:
+    - make_macos_support_explicit
+    - normalize_channel_contracts
+    - reduce_page_and_api_platform_branching
+    - make_unsupported_features_testable
+
+constraints:
+  preserve_public_api_where_possible: true
+  no_native_behavior_guessing_without_contract: true
+  keep_android_behavior_compatible: true
+  prefer_small_incremental_commits: true
+  required_verification:
+    - flutter analyze
+    - flutter test
+    - cd example && flutter test
+
+current_architecture:
+  layers:
+    dart_public_api:
+      files:
+        - lib/flutter_battery.dart
+        - lib/flutter_bluetooth.dart
+        - lib/peer_battery_service.dart
+      issues:
+        - public_api_has_no_platform_capability_model
+        - battery_stream_parser_accepts_android_shape_more_than_contract_shape
+        - unavailable_battery_semantics_are_not_declared
+    dart_platform_interface:
+      files:
+        - lib/flutter_battery_platform_interface.dart
+        - lib/flutter_battery_method_channel.dart
+      issues:
+        - interface_defines_methods_but_not_feature_support
+        - method_channel_has_no_typed_payload_models
+        - MissingPluginException_handling_is_left_to_callers
+        - configureBatteryMonitor_assumes_all_platforms_implement_all_listeners
+    native_android:
+      files:
+        - android/src/main/kotlin/com/example/flutter_battery/FlutterBatteryPlugin.kt
+        - android/src/main/kotlin/com/example/flutter_battery/channel/MethodChannelHandler.kt
+        - android/src/main/kotlin/com/example/flutter_battery/channel/EventChannelHandler.kt
+      strengths:
+        - rich_battery_monitoring
+        - method_callbacks_to_dart
+        - event_payload_types_for_info_and_health
+        - notifications
+        - ble_peer_sync
+      issues:
+        - iot_native_channel_lives_in_plugin_repo_but_is_example_or_integration_concern
+        - event_payload_contract_not_generated_or_validated
+    native_macos:
+      files:
+        - macos/flutter_battery/Classes/FlutterBatteryPlugin.swift
+        - macos/flutter_battery/Classes/BatteryMonitor.swift
+      strengths:
+        - flutter_battery_method_channel_declared
+        - flutter_battery_battery_stream_declared
+        - getBatteryLevel_getBatteryInfo_getBatteryHealth_exist
+      issues:
+        - callback_bridge_not_wired
+        - stream_payload_shape_differs_from_android
+        - health_stream_not_emitted
+        - unavailable_no_battery_semantics_use_minus_one_without_contract
+        - notification_methods_return_errors_without_capability_declaration
+        - ble_peer_sync_channels_not_declared
+        - iot_channels_not_declared
+    example_app:
+      files:
+        - example/lib/main.dart
+        - example/lib/pages/dashboard_page.dart
+        - example/lib/platform/example_platform_adapter.dart
+      current_state:
+        - partial_adapter_for_android_only_example_features_exists
+      issues:
+        - adapter_is_example_local_not_plugin_capability_api
+        - feature_availability_is_not_shared_with_library_consumers
+        - low_battery_notification_page_still_exposes_android_native_notification_flow_on_macos
+    contracts:
+      files:
+        - integration/channel/contracts/channel_contract.yaml
+        - integration/channel/contracts/macos_battery_evolution_plan.yaml
+      issues:
+        - channel_contract_yaml_documents_iot_and_peer_only
+        - flutter_battery_method_channel_missing_from_primary_contract
+        - flutter_battery_event_channel_missing_from_primary_contract
+        - macos_contract_plan_is_not_enforced_by_tests
+
+target_architecture:
+  packages:
+    lib:
+      public_api:
+        - FlutterBattery
+        - BatteryInfo
+        - BatteryHealth
+        - BatteryPlatformCapabilities
+        - BatteryFeature
+        - BatteryFeatureAvailability
+      internal_contracts:
+        - BatteryChannelNames
+        - BatteryMethodNames
+        - BatteryEventTypes
+        - BatteryPayloadKeys
+      platform_interface:
+        required:
+          - getPlatformVersion
+          - getPlatformCapabilities
+          - getBatteryLevel
+          - getBatteryInfo
+          - getBatteryHealth
+          - getBatteryOptimizationTips
+          - batteryStream
+        optional_by_capability:
+          - configureBatteryMonitor
+          - configureBatteryMonitoring
+          - sendNotification
+          - scheduleNotification
+          - showNotification
+          - blePeerSync
+    native:
+      android:
+        implements:
+          - batteryLevel
+          - batteryInfo
+          - batteryHealth
+          - batteryLevelStream
+          - batteryInfoStream
+          - batteryHealthStream
+          - methodCallbacks
+          - lowBatteryMonitoring
+          - nativeNotifications
+          - blePeerSync
+          - iotExampleBridge
+      macos:
+        implements_target:
+          - batteryLevel
+          - batteryInfo
+          - batteryHealth
+          - batteryLevelStream
+          - batteryInfoStream
+          - batteryHealthStream
+          - methodCallbacks
+        explicitly_unsupported:
+          - nativeNotifications
+          - scheduledNotifications
+          - blePeerSync
+          - iotExampleBridge
+          - lowBatterySystemNotification
+      ios:
+        status: declared_in_pubspec_but_native_files_absent
+        action: either_add_ios_implementation_or_remove_ios_declaration_until_supported
+
+missing_macos_interface_declarations:
+  public_dart_capability_api:
+    missing:
+      - BatteryFeature.batteryLevel
+      - BatteryFeature.batteryInfo
+      - BatteryFeature.batteryHealth
+      - BatteryFeature.batteryLevelStream
+      - BatteryFeature.batteryInfoStream
+      - BatteryFeature.batteryHealthStream
+      - BatteryFeature.lowBatteryMonitoring
+      - BatteryFeature.nativeNotifications
+      - BatteryFeature.scheduledNotifications
+      - BatteryFeature.blePeerSync
+      - BatteryFeature.iotExampleBridge
+      - FlutterBattery.getPlatformCapabilities()
+      - FlutterBattery.isFeatureSupported(BatteryFeature)
+    target_file_new:
+      - lib/src/platform_capabilities.dart
+    target_file_update:
+      - lib/flutter_battery.dart
+      - lib/flutter_battery_platform_interface.dart
+      - lib/flutter_battery_method_channel.dart
+  method_channel_contract:
+    channel: flutter_battery
+    missing_contract_file_entries:
+      - getPlatformVersion
+      - getPlatformCapabilities
+      - getBatteryLevel
+      - getBatteryInfo
+      - getBatteryHealth
+      - getBatteryOptimizationTips
+      - startBatteryLevelListening
+      - stopBatteryLevelListening
+      - startBatteryInfoListening
+      - stopBatteryInfoListening
+      - startBatteryHealthListening
+      - stopBatteryHealthListening
+      - setPushInterval
+      - setBatteryLevelThreshold
+      - stopBatteryMonitoring
+      - scheduleNotification
+      - showNotification
+    target_file_update:
+      - integration/channel/contracts/channel_contract.yaml
+  event_channel_contract:
+    channel: flutter_battery/battery_stream
+    missing_event_types:
+      - BATTERY_LEVEL
+      - BATTERY_INFO
+      - BATTERY_HEALTH
+      - BATTERY_UNAVAILABLE
+      - BATTERY_ERROR
+    target_payload_keys:
+      BATTERY_LEVEL:
+        required:
+          - type
+          - timestamp
+        optional:
+          - batteryLevel
+          - level
+          - unavailableReason
+      BATTERY_INFO:
+        required:
+          - type
+          - timestamp
+          - isCharging
+          - state
+        optional:
+          - level
+          - batteryLevel
+          - isCharged
+          - timeToFull
+          - timeToEmpty
+          - temperature
+          - voltage
+          - unavailableReason
+      BATTERY_HEALTH:
+        required:
+          - type
+          - timestamp
+          - state
+          - statusLabel
+          - isGood
+          - riskLevel
+          - recommendations
+        optional:
+          - level
+          - batteryLevel
+          - isCharging
+          - temperature
+          - voltage
+          - healthPercentage
+          - maxCapacity
+          - currentCapacity
+          - designCapacity
+          - cycleCount
+          - serialNumber
+          - manufacturer
+          - deviceName
+          - unavailableReason
+  native_macos_callback_bridge:
+    missing:
+      - BatteryMonitor.setOnBatteryLevelChangeCallback
+      - BatteryMonitor.setOnBatteryInfoChangeCallback
+      - BatteryMonitor.setOnBatteryHealthChangeCallback
+      - FlutterBatteryPlugin.invokeMethod_onBatteryLevelChanged
+      - FlutterBatteryPlugin.invokeMethod_onBatteryInfoChanged
+      - FlutterBatteryPlugin.invokeMethod_onBatteryHealthChanged
+      - optional_FlutterBatteryPlugin.invokeMethod_onLowBattery_if_low_battery_monitoring_supported
+    target_file_update:
+      - macos/flutter_battery/Classes/FlutterBatteryPlugin.swift
+      - macos/flutter_battery/Classes/BatteryMonitor.swift
+  native_macos_unsupported_interfaces:
+    missing_explicit_declared_unsupported:
+      - flutter_battery/ble_methods
+      - flutter_battery/ble_scan_events
+      - flutter_battery/ble_connection_events
+      - flutter_battery/peer_methods
+      - flutter_battery/peer_events
+      - iot/native
+      - iot/stream
+    recommended_policy:
+      library_layer: expose_feature_as_unsupported_not_MissingPluginException
+      example_layer: disable_ui_by_capability
+      native_layer: do_not_register_channels_unless_product_requires_them
+
+refactor_tasks:
+  - id: R001.add_channel_constants_and_payload_models
+    priority: P0
+    intent: eliminate_stringly_typed_channel_contracts
+    write:
+      - lib/src/battery_channel_contract.dart
+    update:
+      - lib/flutter_battery_method_channel.dart
+      - lib/flutter_battery.dart
+      - test/flutter_battery_test.dart
+      - test/flutter_battery_method_channel_test.dart
+    operations:
+      - define_channel_names
+      - define_method_names
+      - define_event_types
+      - define_payload_keys
+      - normalize_level_from_batteryLevel_or_level
+      - normalize_minus_one_to_null_or_unavailable_event
+    acceptance:
+      - no_raw_flutter_battery_channel_strings_outside_contract_file_except_native_registration
+      - batteryInfoStream_accepts_android_and_macos_level_payloads
+
+  - id: R002.add_platform_capability_api
+    priority: P0
+    intent: make_supported_features_queryable
+    write:
+      - lib/src/platform_capabilities.dart
+    update:
+      - lib/flutter_battery.dart
+      - lib/flutter_battery_platform_interface.dart
+      - lib/flutter_battery_method_channel.dart
+      - macos/flutter_battery/Classes/FlutterBatteryPlugin.swift
+      - android/src/main/kotlin/com/example/flutter_battery/channel/MethodChannelHandler.kt
+    operations:
+      - add_BatteryFeature_enum
+      - add_BatteryPlatformCapabilities_value_object
+      - add_getPlatformCapabilities_to_platform_interface
+      - add_getPlatformCapabilities_method_channel_call
+      - android_returns_supported_feature_map
+      - macos_returns_supported_and_unsupported_feature_map
+    acceptance:
+      - FlutterBattery_getPlatformCapabilities_returns_value_object
+      - macos_reports_notifications_and_ble_peer_sync_unsupported
+      - android_reports_notifications_and_ble_peer_sync_supported
+
+  - id: R003_make_optional_features_fail_predictably
+    priority: P0
+    intent: replace_missing_plugin_with_unsupported_feature_semantics
+    update:
+      - lib/flutter_battery.dart
+      - lib/flutter_battery_method_channel.dart
+      - lib/peer_battery_service.dart
+      - lib/flutter_bluetooth_method_channel.dart
+      - example/lib/platform/example_platform_adapter.dart
+    operations:
+      - introduce_UnsupportedBatteryFeatureException
+      - map_MissingPluginException_to_UnsupportedBatteryFeatureException_for_optional_features
+      - keep_PlatformException_for_native_runtime_failures
+      - gate_example_routes_by_capabilities
+    acceptance:
+      - macos_peer_sync_call_does_not_surface_raw_MissingPluginException
+      - macos_iot_demo_route_disabled_by_capability
+
+  - id: R004_normalize_macos_battery_streams
+    priority: P1
+    intent: make_macos_match_dart_stream_contract
+    update:
+      - macos/flutter_battery/Classes/BatteryMonitor.swift
+      - lib/flutter_battery.dart
+      - test/flutter_battery_test.dart
+    operations:
+      - emit_BATTERY_LEVEL_with_batteryLevel_and_level_aliases
+      - emit_BATTERY_INFO_with_type
+      - emit_BATTERY_HEALTH_with_type
+      - event_channel_send_health_payload
+      - no_battery_emit_BATTERY_UNAVAILABLE_or_null_level
+    acceptance:
+      - batteryInfoStream_parses_macos_simple_level_event
+      - batteryHealthStream_emits_from_macos_health_event
+      - no_battery_macos_does_not_render_0_percent_by_accident
+
+  - id: R005_wire_macos_method_callbacks
+    priority: P1
+    intent: make_configureBatteryCallbacks_work_on_macos
+    update:
+      - macos/flutter_battery/Classes/FlutterBatteryPlugin.swift
+      - macos/flutter_battery/Classes/BatteryMonitor.swift
+    operations:
+      - add_callback_setters_to_BatteryMonitor
+      - inject_method_channel_callback_bridge
+      - invoke_onBatteryLevelChanged
+      - invoke_onBatteryInfoChanged
+      - invoke_onBatteryHealthChanged
+    acceptance:
+      - example_dashboard_updates_on_macos_after_configureBatteryMonitor
+      - callbacks_and_event_streams_emit_same_normalized_payload_shape
+
+  - id: R006_split_example_iot_from_plugin_contract
+    priority: P2
+    intent: avoid_plugin_public_surface_being_mixed_with_demo_iot_bridge
+    update:
+      - integration/channel/contracts/channel_contract.yaml
+      - example/lib/platform/example_platform_adapter.dart
+      - example/README.md
+    operations:
+      - mark_iot_native_as_example_android_only
+      - keep_peer_sync_as_plugin_optional_feature
+      - document_iot_channels_not_part_of_flutter_battery_public_api
+    acceptance:
+      - channel_contract_separates_plugin_channels_from_example_channels
+
+  - id: R007_update_primary_channel_contract
+    priority: P2
+    intent: make_contract_file_authoritative
+    update:
+      - integration/channel/contracts/channel_contract.yaml
+    operations:
+      - add_flutter_battery_method_channel
+      - add_flutter_battery_battery_stream_channel
+      - add_peer_channels_as_optional_android_feature
+      - add_platform_support_matrix
+    acceptance:
+      - contract_contains_method_event_payloads_for_android_and_macos
+
+  - id: R008_resolve_ios_declaration
+    priority: P2
+    intent: remove_false_platform_claim_or_add_scaffold
+    update_options:
+      option_a_remove_until_supported:
+        - pubspec.yaml
+      option_b_add_ios_scaffold:
+        - ios/Classes/FlutterBatteryPlugin.swift
+        - ios/flutter_battery.podspec
+    decision_rule:
+      - if_ios_not_in_scope_remove_ios_platform_declaration
+      - if_ios_in_scope_add_minimal_capability_reporting_and_battery_level
+    acceptance:
+      - flutter_pub_get_has_no_false_ios_plugin_declaration
+
+implementation_order:
+  - R001.add_channel_constants_and_payload_models
+  - R002.add_platform_capability_api
+  - R003.make_optional_features_fail_predictably
+  - R004.normalize_macos_battery_streams
+  - R005.wire_macos_method_callbacks
+  - R006.split_example_iot_from_plugin_contract
+  - R007.update_primary_channel_contract
+  - R008.resolve_ios_declaration
+
+test_matrix:
+  unit:
+    - test/flutter_battery_test.dart
+    - test/flutter_battery_method_channel_test.dart
+    - example/test/widget_test.dart
+  add_tests:
+    - name: batteryInfoStream_accepts_level_key
+      file: test/flutter_battery_test.dart
+    - name: batteryInfoStream_accepts_batteryLevel_key
+      file: test/flutter_battery_test.dart
+    - name: batteryHealthStream_accepts_macos_payload
+      file: test/flutter_battery_test.dart
+    - name: method_channel_maps_missing_plugin_to_unsupported_for_peer_optional_feature
+      file: test/flutter_battery_method_channel_test.dart
+    - name: dashboard_disables_features_from_capability_object
+      file: example/test/widget_test.dart
+  manual:
+    android:
+      - cd example && flutter run -d android
+      - verify_battery_level
+      - verify_battery_info_stream
+      - verify_low_battery_notification_if_permissions_available
+      - verify_peer_sync_on_two_devices_if_available
+    macos:
+      - cd example && flutter run -d macos
+      - verify_no_iot_missing_plugin_exception
+      - verify_battery_level_nonzero_on_macbook
+      - verify_no_battery_unavailable_on_desktop_mac
+      - verify_dashboard_updates_after_monitor_start
+
+done_definition:
+  - platform_capabilities_are_queryable_from_public_api
+  - macos_supported_features_are_explicit
+  - macos_unsupported_features_are_explicit
+  - flutter_battery_channel_contract_is_documented
+  - battery_event_payloads_are_normalized
+  - example_pages_do_not_contain_direct_platform_checks
+  - raw_MissingPluginException_not_exposed_for_known_optional_features
+  - all_required_verification_commands_pass

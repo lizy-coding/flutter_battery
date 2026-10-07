@@ -1,11 +1,11 @@
 Pod::Spec.new do |s|
   s.name             = 'flutter_battery'
-  s.version          = '0.0.1'
+  s.version          = '0.0.3'
   s.summary          = 'Flutter battery plugin macOS implementation'
   s.description      = 'A Flutter plugin for battery monitoring on macOS.'
-  s.homepage         = 'https://github.com/yourorg/flutter_battery'
+  s.homepage         = 'https://github.com/lizy-coding/flutter_battery'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.author           = { 'flutter_battery contributors' => '' }
   s.source           = { :path => '.' }
   s.source_files     = 'flutter_battery/Classes/**/*'
   s.public_header_files = 'flutter_battery/Classes/**/*.h'

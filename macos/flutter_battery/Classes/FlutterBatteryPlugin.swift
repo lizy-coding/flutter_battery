@@ -31,6 +31,25 @@ public class FlutterBatteryPlugin: NSObject, FlutterPlugin {
         let eventHandler = BatteryStreamHandler(batteryMonitor: plugin.batteryMonitor!)
         eventChannel.setStreamHandler(eventHandler)
         plugin.eventChannelHandler = eventHandler
+        
+        // Wire callback bridge (R005)
+        plugin.wireCallbackBridge()
+    }
+    
+    private func wireCallbackBridge() {
+        guard let batteryMonitor = batteryMonitor else { return }
+        
+        batteryMonitor.setOnBatteryLevelChangeCallback { [weak self] level in
+            self?.methodChannel?.invokeMethod("onBatteryLevelChanged", arguments: ["batteryLevel": level])
+        }
+        
+        batteryMonitor.setOnBatteryInfoChangeCallback { [weak self] info in
+            self?.methodChannel?.invokeMethod("onBatteryInfoChanged", arguments: info)
+        }
+        
+        batteryMonitor.setOnBatteryHealthChangeCallback { [weak self] health in
+            self?.methodChannel?.invokeMethod("onBatteryHealthChanged", arguments: health)
+        }
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -43,6 +62,9 @@ public class FlutterBatteryPlugin: NSObject, FlutterPlugin {
         case "getPlatformVersion":
             let version = ProcessInfo.processInfo.operatingSystemVersionString
             result("macOS \(version)")
+            
+        case "getPlatformCapabilities":
+            result(getPlatformCapabilities())
             
         case "getBatteryLevel":
             let level = batteryMonitor.getBatteryLevel()
@@ -102,8 +124,6 @@ public class FlutterBatteryPlugin: NSObject, FlutterPlugin {
             result(true)
             
         case "setBatteryLevelThreshold":
-            // macOS doesn't support native notifications in the same way as Android
-            // Return success but log that this feature is limited
             result(true)
             
         case "stopBatteryMonitoring":
@@ -111,16 +131,30 @@ public class FlutterBatteryPlugin: NSObject, FlutterPlugin {
             result(true)
             
         case "scheduleNotification":
-            // Not supported on macOS
             result(FlutterError(code: "NOT_SUPPORTED", message: "Scheduled notifications not supported on macOS", details: nil))
             
         case "showNotification":
-            // Not supported on macOS
             result(FlutterError(code: "NOT_SUPPORTED", message: "Native notifications not supported on macOS", details: nil))
             
         default:
             result(FlutterMethodNotImplemented)
         }
+    }
+    
+    private func getPlatformCapabilities() -> [String: Bool] {
+        return [
+            "batteryLevel": true,
+            "batteryInfo": true,
+            "batteryHealth": true,
+            "batteryLevelStream": true,
+            "batteryInfoStream": true,
+            "batteryHealthStream": true,
+            "lowBatteryMonitoring": true,
+            "nativeNotifications": false,
+            "scheduledNotifications": false,
+            "blePeerSync": false,
+            "iotExampleBridge": false,
+        ]
     }
     
     public func detachFromEngine(for registrar: FlutterPluginRegistrar) {

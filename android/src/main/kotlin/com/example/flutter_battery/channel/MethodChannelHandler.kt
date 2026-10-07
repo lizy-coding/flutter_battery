@@ -190,6 +190,9 @@ class MethodChannelHandler(
                     gattServerManager.stopSlaveMode()
                     result.success(null)
                 }
+                "getPlatformCapabilities" -> {
+                    result.success(getPlatformCapabilities())
+                }
                 "getPlatformVersion" -> {
                     result.success("Android ${android.os.Build.VERSION.RELEASE}")
                 }
@@ -412,6 +415,22 @@ class MethodChannelHandler(
             )
         }
         return false
+    }
+
+    private fun getPlatformCapabilities(): Map<String, Boolean> {
+        return mapOf(
+            "batteryLevel" to true,
+            "batteryInfo" to true,
+            "batteryHealth" to true,
+            "batteryLevelStream" to true,
+            "batteryInfoStream" to true,
+            "batteryHealthStream" to true,
+            "lowBatteryMonitoring" to true,
+            "nativeNotifications" to true,
+            "scheduledNotifications" to true,
+            "blePeerSync" to true,
+            "iotExampleBridge" to true,
+        )
     }
 
     companion object {

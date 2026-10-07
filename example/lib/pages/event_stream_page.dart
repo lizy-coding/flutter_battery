@@ -15,7 +15,9 @@ class EventStreamPage extends StatelessWidget {
         valueListenable: eventsListenable,
         builder: (context, events, _) {
           if (events.isEmpty) {
-            return const Center(child: Text('No events yet. Trigger IoT actions to populate the stream.'));
+            return const Center(
+                child: Text(
+                    'No events yet. Trigger IoT actions to populate the stream.'));
           }
           return ListView.separated(
             padding: const EdgeInsets.all(16),

@@ -1,30 +1,45 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
+import 'package:flutter_battery/flutter_battery.dart';
+import 'package:flutter_battery_example/pages/dashboard_page.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutter_battery_example/main.dart';
-
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  const unsupportedCaps = BatteryPlatformCapabilities(features: {
+    BatteryFeature.batteryLevel: true,
+    BatteryFeature.batteryInfo: true,
+    BatteryFeature.batteryHealth: true,
+    BatteryFeature.batteryLevelStream: true,
+    BatteryFeature.batteryInfoStream: true,
+    BatteryFeature.batteryHealthStream: true,
+    BatteryFeature.lowBatteryMonitoring: true,
+    BatteryFeature.nativeNotifications: false,
+    BatteryFeature.scheduledNotifications: false,
+    BatteryFeature.blePeerSync: false,
+    BatteryFeature.iotExampleBridge: false,
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('dashboard_disables_features_from_capability_object',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DashboardPage(
+          batteryLevel: 50,
+          batteryInfo: null,
+          batteryHealth: null,
+          eventCount: 0,
+          onRefresh: () async {},
+          onBootstrap: () {},
+          capabilities: unsupportedCaps,
+          onOpenBatteryDetails: () {},
+          onOpenLowBatteryAlerts: () {},
+          onOpenPeerBatterySync: () {},
+          onOpenIotControls: () {},
+          onOpenEventLog: () {},
+        ),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('flutter_battery overview'), findsOneWidget);
+    expect(find.text('当前平台不支持'), findsNWidgets(2));
   });
 }
