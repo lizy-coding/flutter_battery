@@ -1,5 +1,4 @@
 rootProject.name = 'flutter_battery'
-include ':flutter_battery'
 
 // 添加 Flutter 本地仓库
 def flutterProjectRoot = rootProject.projectDir.parentFile.toPath()

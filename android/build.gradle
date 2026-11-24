@@ -2,7 +2,10 @@ group = "com.example.flutter_battery"
 version = "1.0-SNAPSHOT"
 
 buildscript {
-    ext.kotlin_version = "1.8.22"
+    // Keep the plugin usable by older Flutter hosts while upgrading its own wrapper.
+    def standalone = project == rootProject
+    ext.kotlin_version = standalone ? "2.4.20" : "1.8.22"
+    def agpVersion = standalone ? "9.3.1" : "8.7.3"
     ext {
         compileSdkVersion = 35
         minSdkVersion = 21
@@ -14,7 +17,7 @@ buildscript {
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:8.7.3")
+        classpath("com.android.tools.build:gradle:$agpVersion")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
     }
 }
@@ -39,8 +42,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11
+    if (project != rootProject) {
+        kotlinOptions {
+            jvmTarget = JavaVersion.VERSION_11
+        }
     }
 
     sourceSets {
@@ -77,6 +82,14 @@ android {
                outputs.upToDateWhen {false}
                showStandardStreams = true
             }
+        }
+    }
+}
+
+if (project == rootProject) {
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
         }
     }
 }

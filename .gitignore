@@ -44,3 +44,7 @@ migrate_working_dir/
 **/Pods/
 **/Podfile.lock
 **/DerivedData/
+
+# Regenerable workspace caches (including nested packages)
+**/__pycache__/
+**/coverage/
